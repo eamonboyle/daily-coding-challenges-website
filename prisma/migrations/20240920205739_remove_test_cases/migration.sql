@@ -43,6 +43,7 @@ CREATE TABLE "Submission" (
     "memory" DOUBLE PRECISION,
     "score" INTEGER NOT NULL,
     "attempts" INTEGER NOT NULL DEFAULT 1,
+    "judge0Token" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
