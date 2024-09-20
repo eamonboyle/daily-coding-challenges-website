@@ -33,6 +33,7 @@ export default function DailyChallenge() {
     const [result, setResult] = useState<SubmissionResult | null>(null)
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
+    const [testResults, setTestResults] = useState(null)
 
     useEffect(() => {
         fetchChallenge()
@@ -104,6 +105,8 @@ export default function DailyChallenge() {
                 2000 // interval in ms
             )
 
+            runTests()
+
             setResult(result)
             if (result.isCorrect) {
                 confetti({
@@ -119,6 +122,16 @@ export default function DailyChallenge() {
         } finally {
             setSubmitting(false)
         }
+    }
+
+    const runTests = async () => {
+        const response = await fetch("/api/challenge/test", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code })
+        })
+        const results = await response.json()
+        setTestResults(results)
     }
 
     if (loading) {
@@ -214,6 +227,7 @@ export default function DailyChallenge() {
                                 Result:
                             </h3>
                             <div className="grid grid-cols-2 gap-4 mb-4">
+                                {JSON.stringify(testResults)}
                                 <div>
                                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                                         Status

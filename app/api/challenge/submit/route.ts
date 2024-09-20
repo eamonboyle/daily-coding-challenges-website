@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server"
 import { PrismaClient } from "@prisma/client"
 import axios from "axios"
 import { getLanguageById } from "@/lib/languages"
+import vm from 'vm';
 
 const prisma = new PrismaClient()
 

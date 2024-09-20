@@ -81,15 +81,28 @@ export async function GET() {
             })
         }
 
-        const language = getLanguageById(challenge.languageId)
-
-        return NextResponse.json({
-            id: challenge.id,
-            title: challenge.title,
-            description: challenge.description,
-            difficulty: challenge.difficulty,
-            language: language?.name
+        const response = await openai.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+                {
+                    role: "user",
+                    content:
+                        "Please provide 3-5 test cases for this challenge in JSON format."
+                }
+            ]
         })
+
+        // Update the existing challenge with test cases instead of creating a new one
+        const challengeWithTestCases = await prisma.dailyChallenge.update({
+            where: { id: challenge.id },
+            data: {
+                testCases: JSON.parse(
+                    response.choices[0].message.content || "{}"
+                )
+            }
+        })
+
+        return NextResponse.json(challengeWithTestCases)
     } catch (error) {
         console.error("Error generating daily challenge:", error)
         return NextResponse.json(
