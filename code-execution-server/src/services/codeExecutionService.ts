@@ -78,7 +78,7 @@ export class CodeExecutionService {
             //     request
             // )
 
-            const imageName = `code-challenge-${language}-${Date.now()}`
+            const imageName = `code-challenge-${language.toLowerCase()}-${Date.now()}`
             await DockerManager.buildImage(
                 imageName,
                 workDir,

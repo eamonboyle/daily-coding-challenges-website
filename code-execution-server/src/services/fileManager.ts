@@ -26,11 +26,11 @@ export class FileManager {
     }
 
     static async cleanup(workDir: string): Promise<void> {
-        // try {
-        //     await rm(workDir, { recursive: true, force: true })
-        //     logger.info(`Temporary directory ${workDir} removed successfully`)
-        // } catch (err) {
-        //     logger.error(`Error removing temporary directory ${workDir}:`, err)
-        // }
+        try {
+            await rm(workDir, { recursive: true, force: true })
+            logger.info(`Temporary directory ${workDir} removed successfully`)
+        } catch (err) {
+            logger.error(`Error removing temporary directory ${workDir}:`, err)
+        }
     }
 }
