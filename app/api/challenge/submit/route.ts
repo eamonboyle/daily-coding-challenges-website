@@ -1,21 +1,25 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { getLanguageById } from "@/lib/languages"
 import axios from "axios"
 import { prisma } from "@/lib/prisma"
+import { extractFunctionName, languageTemplates } from "@/lib/templates"
+import { TestCase } from "@prisma/client"
 
+// Define environment variables for Judge0 API
 const JUDGE0_API_URL = process.env.JUDGE0_API_URL
 const JUDGE0_API_KEY = process.env.JUDGE0_API_KEY
 const JUDGE0_API_HOST = process.env.JUDGE0_API_HOST
 
 export async function POST(request: Request) {
     try {
+        // Authenticate the user
         const { userId } = auth()
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
+        // Fetch user from database
         const user = await prisma.user.findUnique({
             where: { clerkId: userId }
         })
@@ -27,11 +31,13 @@ export async function POST(request: Request) {
             )
         }
 
+        // Extract challenge ID and code from request body
         const { challengeId, code } = await request.json()
 
+        // Fetch challenge details including test cases
         const challenge = await prisma.dailyChallenge.findUnique({
             where: { id: challengeId },
-            include: { testCases: true } // Include test cases
+            include: { testCases: true }
         })
 
         if (!challenge) {
@@ -41,6 +47,7 @@ export async function POST(request: Request) {
             )
         }
 
+        // Get language details
         const language = getLanguageById(challenge.languageId)
         if (!language) {
             return NextResponse.json(
@@ -58,6 +65,53 @@ export async function POST(request: Request) {
             )
         }
 
+        const template = languageTemplates[challenge.languageId]
+        if (!template) {
+            return NextResponse.json(
+                { error: "Unsupported language" },
+                { status: 400 }
+            )
+        }
+
+        const functionName = extractFunctionName(code, challenge.languageId)
+        if (!functionName) {
+            return NextResponse.json(
+                {
+                    error: "UUnable to determine function name from the submitted code."
+                },
+                { status: 400 }
+            )
+        }
+
+        const formatTestInput = (input: string, languageId: number): string => {
+            // Handle different input types and languages as needed
+            // For simplicity, assuming input is a string. Adjust as per your requirements.
+            if (languageId === 101) {
+                // TypeScript
+                return `"${input}"`
+            } else if (languageId === 100) {
+                // Python
+                return `"${input}"`
+            } else if (languageId === 91) {
+                // Java
+                return `"${input}"`
+            }
+            // Add more languages as needed
+            return input
+        }
+
+        // Function to wrap user's code with test case
+        const wrapCode = (userCode: string, testCase: TestCase): string => {
+            const wrappedCode = template.wrapper
+                .replace("{{USER_CODE}}", userCode)
+                .replace("{{FUNCTION_NAME}}", functionName)
+                .replace(
+                    "{{TEST_INPUT}}",
+                    formatTestInput(testCase.input, language.id)
+                )
+            return wrappedCode
+        }
+
         // Function to submit code to Judge0
         const submitToJudge0 = async (input: string) => {
             const response = await axios.post(
@@ -66,7 +120,6 @@ export async function POST(request: Request) {
                     source_code: code,
                     language_id: challenge.languageId,
                     stdin: input
-                    // You can specify additional parameters like expected_output if needed
                 },
                 {
                     headers: {
@@ -79,28 +132,30 @@ export async function POST(request: Request) {
             return response.data
         }
 
+        // Initialize variables for scoring and results
         let totalScore = 0
         const maxScore = testCases.length * 100
         let passedTests = 0
         const outputs = []
         const errors = []
-
         const results = []
 
-        // Process each test case sequentially or in parallel
-        // Here, we'll process sequentially for simplicity
+        // Process each test case
         for (const testCase of testCases) {
-            const result = await submitToJudge0(testCase.input)
+            const wrappedCode = wrapCode(code, testCase)
+            console.log({ wrappedCode })
+            const result = await submitToJudge0(wrappedCode)
+
             results.push(result)
             outputs.push(result.stdout)
             errors.push(result.stderr)
 
             if (result.status.id === 3) {
                 if (result.stdout === null) {
+                    console.log("result.stdout is null")
                     continue
                 }
-                // Accepted
-                // Optionally, verify the output matches the expected output
+                // Check if output matches expected output
                 const userOutput = result.stdout.trim()
                 const expectedOutput = testCase.expectedOutput.trim()
 
@@ -111,17 +166,14 @@ export async function POST(request: Request) {
                     passedTests += 1
                 }
             }
-            // You can handle other status IDs as needed
         }
 
-        // Calculate final score as a percentage
+        // Calculate final score and determine overall status
         const score = (totalScore / maxScore) * 100
-
-        // Determine overall status
         const status =
             passedTests === testCases.length ? "Accepted" : "Wrong Answer"
 
-        // Save the submission with aggregated results
+        // Save the submission with results
         const submission = await prisma.submission.create({
             data: {
                 userId: user.id,
@@ -131,8 +183,6 @@ export async function POST(request: Request) {
                 languageId: challenge.languageId,
                 status,
                 score,
-                // Optionally, you can store detailed results per test case
-                // For simplicity, we're storing aggregated outputs and errors
                 output: outputs.join("\n---\n"),
                 errorOutput: errors.join("\n---\n"),
                 executionTime:
@@ -147,19 +197,20 @@ export async function POST(request: Request) {
                               ).toFixed(2)
                           )
                         : null,
-                memory: null // Same as above
+                memory: null
             }
         })
 
+        // Return the submission results
         return NextResponse.json({
             submissionId: submission.id,
             status: submission.status,
             score: submission.score,
             output: submission.output,
             errorOutput: submission.errorOutput
-            // Include executionTime and memory if stored
         })
     } catch (error) {
+        // Handle any errors
         console.error("Error submitting challenge:", error)
         return NextResponse.json(
             { error: "Internal Server Error" },
