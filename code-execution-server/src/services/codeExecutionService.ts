@@ -28,16 +28,18 @@ export class CodeExecutionService {
             throw new Error(`Unsupported language: ${language}`)
         }
 
-        // Create a temporary directory
+        // Create a temporary directory for the user's code
         const workDir = await FileManager.createTempDir()
 
-        try {
-            // Write the source code file
-            const fileName = `Solution.${config.fileExtension}`
-            const filePath = `${workDir}/${fileName}`
-            await FileManager.writeFileAsync(filePath, code)
+        // Define the code file path based on language configuration
+        const codeFileName = `Solution.${config.fileExtension}`
+        const codeFilePath = `${workDir}/${codeFileName}`
 
-            // Conditionally create package.json
+        try {
+            // Write the user's code to the temporary directory
+            await FileManager.writeFileAsync(codeFilePath, code)
+
+            // Conditionally create package.json if required
             if (config.requiresPackageJson && config.packageJson) {
                 logger.info("Writing package.json to temporary directory")
                 const packageJsonContent = JSON.stringify(
@@ -62,33 +64,26 @@ export class CodeExecutionService {
                 )
             }
 
-            // Create Dockerfile
-            const dockerfileContent = this.createDockerfileContent(
-                config,
-                language,
-                input
-            )
-            const dockerfilePath = `${workDir}/Dockerfile`
-            await FileManager.writeFileAsync(dockerfilePath, dockerfileContent)
-            logger.info("Dockerfile created")
-
-            // const imageName = await DockerManager.buildImageWithCache(
-            //     workDir,
-            //     language.toLowerCase(),
-            //     request
-            // )
-
-            const imageName = `code-challenge-${language.toLowerCase()}-${Date.now()}`
-            await DockerManager.buildImage(
-                imageName,
-                workDir,
-                language,
+            // Build or retrieve the cached base Docker image
+            const imageName = await DockerManager.buildBaseImageWithCache(
+                language.toLowerCase(),
                 request
             )
 
-            // Create and run Docker container
+            // Define the run command based on the language
+            let runCommand = config.runCommand
+            if (config.buildCommand) {
+                runCommand = `${config.buildCommand} && ${runCommand}`
+            }
+
+            // Execute the code inside the Docker container
             const { stdout, stderr } =
-                await DockerManager.createAndRunContainer(imageName, input)
+                await DockerManager.createAndRunContainer(
+                    imageName,
+                    codeFilePath,
+                    runCommand,
+                    input
+                )
 
             return { stdout, stderr, error: undefined }
         } catch (error) {
@@ -99,51 +94,9 @@ export class CodeExecutionService {
                 error: error instanceof Error ? error.message : String(error)
             }
         } finally {
-            // Cleanup
+            // Cleanup: Remove the temporary directory
             await FileManager.cleanup(workDir)
-            // Remove Docker image
-            await DockerManager.removeImagesWithPrefix()
+            // Note: Do NOT remove the cached base image to allow reuse
         }
-    }
-
-    private static createDockerfileContent(
-        config: LanguageConfig,
-        language: string,
-        input?: string
-    ): string {
-        let dockerfile = `FROM ${config.image}
-WORKDIR /usr/src/app
-`
-
-        if (config.requiresPackageJson) {
-            dockerfile += `
-COPY package*.json ./
-RUN npm install
-`
-        }
-
-        if (language.toLowerCase() === "python" && input) {
-            dockerfile += `
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
-`
-        }
-
-        dockerfile += `
-COPY . .
-`
-
-        if (config.buildCommand) {
-            dockerfile += `RUN ${config.buildCommand}\n`
-        }
-
-        if (language.toLowerCase() === "python" && input) {
-            dockerfile += `CMD ["sh", "-c", "echo \\"$INPUT\\" | ${config.runCommand}"]`
-        } else {
-            dockerfile += `CMD ["sh", "-c", "${config.runCommand}"]`
-        }
-
-        logger.info("Dockerfile content:", dockerfile)
-        return dockerfile
     }
 }

@@ -1,3 +1,5 @@
+// src/services/FileManager.ts
+
 import fs from "fs"
 import path from "path"
 import util from "util"
@@ -9,6 +11,10 @@ const mkdir = util.promisify(fs.mkdir)
 const rm = util.promisify(fs.rm)
 
 export class FileManager {
+    /**
+     * Creates a unique temporary directory.
+     * @returns The path to the temporary directory.
+     */
     static async createTempDir(): Promise<string> {
         const uniqueId = uuidv4()
         const workDir = path.join(__dirname, `../temp/${uniqueId}`)
@@ -17,6 +23,11 @@ export class FileManager {
         return workDir
     }
 
+    /**
+     * Writes content to a file asynchronously.
+     * @param filePath The path to the file.
+     * @param content The content to write.
+     */
     static async writeFileAsync(
         filePath: string,
         content: string | Buffer
@@ -25,6 +36,10 @@ export class FileManager {
         logger.info(`File written at ${filePath}`)
     }
 
+    /**
+     * Removes a directory and its contents recursively.
+     * @param workDir The path to the directory.
+     */
     static async cleanup(workDir: string): Promise<void> {
         try {
             await rm(workDir, { recursive: true, force: true })

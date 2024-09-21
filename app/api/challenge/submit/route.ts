@@ -10,6 +10,7 @@ const CODE_EXECUTION_API_URL =
     process.env.CODE_EXECUTION_API_URL || "http://localhost:5000"
 
 export async function POST(request: Request) {
+    const startTime = Date.now() // Start time tracking
     try {
         // Authenticate the user
         const { userId } = auth()
@@ -214,7 +215,9 @@ export async function POST(request: Request) {
                 //               ).toFixed(2)
                 //           )
                 //         : null,
-                executionTime: null,
+                executionTime: parseFloat(
+                    ((Date.now() - startTime) / 1000).toFixed(3)
+                ), // Calculate execution time in seconds as a float
                 memory: null
             }
         })
@@ -225,7 +228,8 @@ export async function POST(request: Request) {
             status: submission.status,
             score: submission.score,
             output: submission.output,
-            errorOutput: submission.errorOutput
+            errorOutput: submission.errorOutput,
+            executionTime: submission.executionTime // Include execution time in response
         })
     } catch (error) {
         // Handle any errors
