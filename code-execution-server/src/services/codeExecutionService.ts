@@ -72,9 +72,17 @@ export class CodeExecutionService {
             await FileManager.writeFileAsync(dockerfilePath, dockerfileContent)
             logger.info("Dockerfile created")
 
-            const imageName = await DockerManager.buildImageWithCache(
+            // const imageName = await DockerManager.buildImageWithCache(
+            //     workDir,
+            //     language.toLowerCase(),
+            //     request
+            // )
+
+            const imageName = `code-challenge-${language}-${Date.now()}`
+            await DockerManager.buildImage(
+                imageName,
                 workDir,
-                language.toLowerCase(),
+                language,
                 request
             )
 

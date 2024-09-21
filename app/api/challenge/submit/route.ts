@@ -101,10 +101,10 @@ export async function POST(request: Request) {
         // Function to wrap user's code with test case
         const wrapCode = (userCode: string, testCase: TestCase): string => {
             const wrappedCode = template.wrapper
-                .replace("<USER_CODE>", userCode)
-                .replace("<FUNCTION_NAME>", functionName)
+                .replace("{{USER_CODE}}", userCode)
+                .replace("{{FUNCTION_NAME}}", functionName)
                 .replace(
-                    "<TEST_INPUT>",
+                    "{{TEST_INPUT}}",
                     formatTestInput(testCase.input, language.id)
                 )
             return wrappedCode
@@ -154,15 +154,16 @@ export async function POST(request: Request) {
                 result = await submitToExecutionService(
                     language.name.toLowerCase(),
                     wrappedCode,
-                    ""
+                    testCase.input // Pass the test case input here
                 )
 
                 console.log({ code, testCase, wrappedCode, result })
-            } catch (error: any) {
+            } catch (error) {
                 // Handle execution service errors
                 result = {
                     stdout: "",
-                    stderr: error.message || "Execution failed"
+                    stderr:
+                        error instanceof Error ? error.message : String(error)
                 }
             }
 
