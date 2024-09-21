@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import MonacoEditor from "@/components/MonacoEditor"
-import { pollForResult } from "@/lib/polling"
 import { motion } from "framer-motion"
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
 import confetti from "canvas-confetti"
@@ -21,10 +20,8 @@ interface SubmissionResult {
     executionTime: number
     memory: number
     score: number
-    isCorrect: boolean
-    stdout?: string
-    stderr?: string
-    compile_output?: string
+    output?: string
+    errorOutput?: string
 }
 
 export default function DailyChallenge() {
@@ -33,7 +30,6 @@ export default function DailyChallenge() {
     const [result, setResult] = useState<SubmissionResult | null>(null)
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
-    const [testResults, setTestResults] = useState(null)
 
     useEffect(() => {
         fetchChallenge()
@@ -91,24 +87,10 @@ export default function DailyChallenge() {
                 throw new Error("Failed to submit challenge")
             }
 
-            const { token } = await response.json()
-
-            const result = await pollForResult<SubmissionResult>(
-                () =>
-                    fetch(`/api/challenge/result/${token}`).then((res) =>
-                        res.json()
-                    ),
-                (result) =>
-                    result.status !== "In Queue" &&
-                    result.status !== "Processing",
-                30, // maxAttempts
-                2000 // interval in ms
-            )
-
-            runTests()
-
+            const result: SubmissionResult = await response.json()
             setResult(result)
-            if (result.isCorrect) {
+
+            if (result.score === 100) {
                 confetti({
                     particleCount: 100,
                     spread: 70,
@@ -117,21 +99,16 @@ export default function DailyChallenge() {
             }
         } catch (error) {
             console.error("Error submitting challenge:", error)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            setResult({ error: "Failed to submit challenge" } as any)
+            setResult({ 
+                status: "Error", 
+                executionTime: 0, 
+                memory: 0, 
+                score: 0, 
+                errorOutput: "Failed to submit challenge" 
+            })
         } finally {
             setSubmitting(false)
         }
-    }
-
-    const runTests = async () => {
-        const response = await fetch("/api/challenge/test", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code })
-        })
-        const results = await response.json()
-        setTestResults(results)
     }
 
     if (loading) {
@@ -219,7 +196,7 @@ export default function DailyChallenge() {
                             className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md"
                         >
                             <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white flex items-center">
-                                {result.isCorrect ? (
+                                {result.score === 100 ? (
                                     <CheckCircle className="mr-2 text-green-500" />
                                 ) : (
                                     <XCircle className="mr-2 text-red-500" />
@@ -227,7 +204,6 @@ export default function DailyChallenge() {
                                 Result:
                             </h3>
                             <div className="grid grid-cols-2 gap-4 mb-4">
-                                {JSON.stringify(testResults)}
                                 <div>
                                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
                                         Status
@@ -261,33 +237,23 @@ export default function DailyChallenge() {
                                     </p>
                                 </div>
                             </div>
-                            {result.stdout && (
+                            {result.output && (
                                 <div className="mb-4">
                                     <h4 className="font-semibold mb-2 text-gray-700 dark:text-gray-300">
                                         Output:
                                     </h4>
                                     <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-sm overflow-x-auto">
-                                        {result.stdout}
+                                        {result.output}
                                     </pre>
                                 </div>
                             )}
-                            {result.stderr && (
+                            {result.errorOutput && (
                                 <div className="mb-4">
                                     <h4 className="font-semibold mb-2 text-gray-700 dark:text-gray-300">
                                         Error:
                                     </h4>
                                     <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-sm overflow-x-auto text-red-500">
-                                        {result.stderr}
-                                    </pre>
-                                </div>
-                            )}
-                            {result.compile_output && (
-                                <div>
-                                    <h4 className="font-semibold mb-2 text-gray-700 dark:text-gray-300">
-                                        Compile Output:
-                                    </h4>
-                                    <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-sm overflow-x-auto">
-                                        {result.compile_output}
+                                        {result.errorOutput}
                                     </pre>
                                 </div>
                             )}

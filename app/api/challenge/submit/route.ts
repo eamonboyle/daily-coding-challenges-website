@@ -1,9 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { PrismaClient } from "@prisma/client"
-import axios from "axios"
 import { getLanguageById } from "@/lib/languages"
-import vm from "vm"
+import axios from "axios"
 
 const prisma = new PrismaClient()
 
@@ -32,7 +32,8 @@ export async function POST(request: Request) {
         const { challengeId, code } = await request.json()
 
         const challenge = await prisma.dailyChallenge.findUnique({
-            where: { id: challengeId }
+            where: { id: challengeId },
+            include: { testCases: true } // Include test cases
         })
 
         if (!challenge) {
@@ -43,40 +44,123 @@ export async function POST(request: Request) {
         }
 
         const language = getLanguageById(challenge.languageId)
+        if (!language) {
+            return NextResponse.json(
+                { error: "Unsupported language" },
+                { status: 400 }
+            )
+        }
 
-        // Submit code to Judge0
-        const judgeResponse = await axios.post(
-            `${JUDGE0_API_URL}/submissions`,
-            {
-                source_code: code,
-                language_id: challenge.languageId,
-                stdin: "" // You might want to add test cases here
-            },
-            {
-                headers: {
-                    "X-RapidAPI-Key": JUDGE0_API_KEY,
-                    "X-RapidAPI-Host": JUDGE0_API_HOST
+        const testCases = challenge.testCases
+
+        if (!testCases || testCases.length === 0) {
+            return NextResponse.json(
+                { error: "No test cases defined for this challenge" },
+                { status: 400 }
+            )
+        }
+
+        // Function to submit code to Judge0
+        const submitToJudge0 = async (input: string) => {
+            const response = await axios.post(
+                `${JUDGE0_API_URL}/submissions?wait=true`,
+                {
+                    source_code: code,
+                    language_id: challenge.languageId,
+                    stdin: input
+                    // You can specify additional parameters like expected_output if needed
+                },
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-RapidAPI-Key": JUDGE0_API_KEY,
+                        "X-RapidAPI-Host": JUDGE0_API_HOST
+                    }
+                }
+            )
+            return response.data
+        }
+
+        let totalScore = 0
+        const maxScore = testCases.length * 100
+        let passedTests = 0
+        const outputs = []
+        const errors = []
+
+        const results = []
+
+        // Process each test case sequentially or in parallel
+        // Here, we'll process sequentially for simplicity
+        for (const testCase of testCases) {
+            const result = await submitToJudge0(testCase.input)
+            results.push(result)
+            outputs.push(result.stdout)
+            errors.push(result.stderr)
+
+            if (result.status.id === 3) {
+                if (result.stdout === null) {
+                    continue
+                }
+                // Accepted
+                // Optionally, verify the output matches the expected output
+                const userOutput = result.stdout.trim()
+                const expectedOutput = testCase.expectedOutput.trim()
+
+                console.log({ userOutput, expectedOutput })
+
+                if (userOutput === expectedOutput) {
+                    totalScore += 100
+                    passedTests += 1
                 }
             }
-        )
+            // You can handle other status IDs as needed
+        }
 
-        const { token } = judgeResponse.data
+        // Calculate final score as a percentage
+        const score = (totalScore / maxScore) * 100
 
-        // Save the submission with the Judge0 token
+        // Determine overall status
+        const status =
+            passedTests === testCases.length ? "Accepted" : "Wrong Answer"
+
+        // Save the submission with aggregated results
         const submission = await prisma.submission.create({
             data: {
                 userId: user.id,
                 challengeId,
                 code,
-                language: language?.name || "javascript",
-                status: "Submitted", // Initial status
-                score: 0, // Initial score
+                language: language.name,
                 languageId: challenge.languageId,
-                judge0Token: token // Store the token
+                status,
+                score,
+                // Optionally, you can store detailed results per test case
+                // For simplicity, we're storing aggregated outputs and errors
+                output: outputs.join("\n---\n"),
+                errorOutput: errors.join("\n---\n"),
+                executionTime:
+                    results.length > 0
+                        ? parseFloat(
+                              (
+                                  results.reduce(
+                                      (sum, result) =>
+                                          sum + (parseFloat(result.time) || 0),
+                                      0
+                                  ) / results.length
+                              ).toFixed(2)
+                          )
+                        : null,
+                memory: null // Same as above
             }
         })
 
-        return NextResponse.json({ submissionId: submission.id, token })
+        return NextResponse.json({
+            submissionId: submission.id,
+            status: submission.status,
+            score: submission.score,
+            output: submission.output,
+            errorOutput: submission.errorOutput
+            // Include executionTime and memory if stored
+        })
     } catch (error) {
         console.error("Error submitting challenge:", error)
         return NextResponse.json(

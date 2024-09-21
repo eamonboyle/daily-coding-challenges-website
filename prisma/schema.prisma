@@ -40,26 +40,37 @@ model DailyChallenge {
     user        User         @relation(fields: [userId], references: [id])
     userId      String
 
-    testCases Json?
+    testCases TestCase[]
 
     @@unique([date, userId])
 }
 
+model TestCase {
+    id             String         @id @default(uuid())
+    challengeId    String
+    input          String
+    expectedOutput String
+    DailyChallenge DailyChallenge @relation(fields: [challengeId], references: [id])
+}
+
 model Submission {
-    id            String         @id @default(cuid())
+    id            String  @id @default(cuid())
     userId        String
     challengeId   String
     code          String
     language      String
     languageId    Int
     status        String
+    output        String?
+    errorOutput   String?
     executionTime Float?
     memory        Float?
-    score         Int
-    attempts      Int            @default(1)
-    judge0Token   String? // Add this line
-    createdAt     DateTime       @default(now())
-    updatedAt     DateTime       @updatedAt
-    user          User           @relation(fields: [userId], references: [id])
-    challenge     DailyChallenge @relation(fields: [challengeId], references: [id])
+
+    score       Int
+    attempts    Int            @default(1)
+    judge0Token String? // Add this line
+    createdAt   DateTime       @default(now())
+    updatedAt   DateTime       @updatedAt
+    user        User           @relation(fields: [userId], references: [id])
+    challenge   DailyChallenge @relation(fields: [challengeId], references: [id])
 }
