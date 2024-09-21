@@ -43,6 +43,8 @@ const languageConfigs: Record<
     // Add more languages and their configurations as needed
 }
 
+const cachedImages: Record<string, string> = {} // Cache for images
+
 export const executeCode = async (
     request: CodeExecutionRequest
 ): Promise<CodeExecutionResponse> => {
@@ -117,9 +119,11 @@ CMD ["npm", "run", "start"]`
         throw new Error("Dockerfile was not created successfully.")
     }
 
-    // Build the Docker image
-    const imageName = `custom-image-${uniqueId}`
-    await buildDockerImage(imageName, workDir)
+    const imageName = cachedImages[language] || `custom-image-${uniqueId}` // Check cache
+    if (!cachedImages[language]) {
+        await buildDockerImage(imageName, workDir)
+        cachedImages[language] = imageName // Cache the image
+    }
 
     console.log("Creating Docker container")
     const container = await docker.createContainer({
