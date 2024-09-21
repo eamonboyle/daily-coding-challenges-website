@@ -203,8 +203,12 @@ CMD ["npm", "run", "start"]`
         }
     } finally {
         console.log("Cleaning up")
-        fs.rmSync(workDir, { recursive: true, force: true })
-        console.log("workDir removed successfully")
+        try {
+            fs.rmSync(workDir, { recursive: true, force: true }) // Ensure workDir is removed
+            console.log("workDir removed successfully")
+        } catch (err) {
+            console.error("Error removing workDir:", err) // Log any errors during removal
+        }
 
         try {
             // Check if the container is still running before stopping
@@ -218,13 +222,13 @@ CMD ["npm", "run", "start"]`
             console.error("Error removing container:", err)
         }
 
-        try {
-            // Delete the Docker image
-            await docker.getImage(imageName).remove()
-            console.log("Image removed successfully")
-        } catch (err) {
-            console.error("Error removing image:", err)
-        }
+        // try {
+        //     // Delete the Docker image
+        //     await docker.getImage(imageName).remove()
+        //     console.log("Image removed successfully")
+        // } catch (err) {
+        //     console.error("Error removing image:", err)
+        // }
     }
 }
 
