@@ -67,7 +67,51 @@ export default function Header() {
                                     </Link>
                                 </li>
                                 <li className="mt-2">
-                                    <UserButton />
+                                    <UserButton
+                                        appearance={{
+                                            elements: {
+                                                actionCard:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userButtonPopoverRootBox:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userButtonPopoverCard:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userButtonPopoverCardHeader:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userButtonPopoverCardContent:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userButtonPopoverCardFooter:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userPreview:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userPreviewAvatar:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userPreviewInfo:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userPreviewInfoName:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userPreviewInfoEmail:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userPreviewMainIdentifier:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userPreviewSecondaryIdentifier:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userPreviewActionButton:
+                                                    "bg-gray-900 text-white border-gray-900 hover:bg-gray-700 hover:text-white",
+                                                userPreviewActionButtonIcon:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userButtonPopoverActionButton:
+                                                    "bg-gray-900 text-white border-gray-900 hover:bg-gray-700 hover:text-white",
+                                                userButtonPopoverActionButtonIcon:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                userButtonPopoverFooter:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                footer: "bg-gray-900 text-white border-gray-900 hover:text-white",
+                                                footerAction:
+                                                    "bg-gray-900 text-white border-gray-900 hover:text-white"
+                                            }
+                                        }}
+                                    />
                                 </li>
                             </>
                         )}
