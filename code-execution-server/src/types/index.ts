@@ -1,4 +1,5 @@
 export interface CodeExecutionRequest {
+    dependencies?: string[]
     language: string
     code: string
     input?: string

@@ -7,111 +7,110 @@ import fs from "fs"
 import path from "path"
 import util from "util"
 import * as tarStream from "tar-stream"
+import { getLanguageConfig, LanguageConfig } from "../config/languageConfig"
+import logger from "../utils/logger" // Import the logger
 
-console.log("Initializing Docker client")
+logger.info("Initializing Docker client") // Replace console.log with logger
 const docker = new Docker()
 
 const writeFile = util.promisify(fs.writeFile)
 const mkdir = util.promisify(fs.mkdir)
 
-console.log("Defining language configurations")
-// Define supported languages and corresponding Docker images
-const languageConfigs: Record<
-    string,
-    {
-        image: string
-        fileExtension: string
-        runCommand: string
-        buildCommand?: string
-    }
-> = {
-    javascript: {
-        image: "node:16-alpine",
-        fileExtension: "js",
-        runCommand: "node"
-    },
-    python: {
-        image: "python:3.9-alpine",
-        fileExtension: "py",
-        runCommand: "python"
-    },
-    typescript: {
-        image: "node:16-alpine",
-        fileExtension: "ts",
-        runCommand: "npm run start"
-    }
-    // Add more languages and their configurations as needed
-}
-
-const cachedImages: Record<string, string> = {} // Cache for images
+logger.info("Defining language configurations") // Replace console.log with logger
 
 export const executeCode = async (
     request: CodeExecutionRequest
 ): Promise<CodeExecutionResponse> => {
-    console.log("Executing code for request:", request)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    logger.info("Executing code for request:", request) // Replace console.log with logger
     const { language, code, input } = request
-    const config = languageConfigs[language.toLowerCase()] as {
-        image: string
-        fileExtension: string
-        runCommand: string
-        buildCommand?: string
-    } // Type assertion
+
+    // Get the language config
+    const config = getLanguageConfig(language.toLowerCase()) as LanguageConfig
+
+    logger.info({ config }) // Replace console.log with logger
 
     if (!config) {
-        console.error(`Unsupported language: ${language}`)
+        logger.error(`Unsupported language: ${language}`) // Replace console.error with logger
         throw new Error(`Unsupported language: ${language}`)
     }
 
-    console.log("Creating temporary directory")
+    // Create a temporary directory for the code execution
+    logger.info("Creating temporary directory") // Replace console.log with logger
     const uniqueId = uuidv4()
     const workDir = path.join(__dirname, `../temp/${uniqueId}`)
     await mkdir(workDir, { recursive: true })
-    console.log("workDir", workDir)
+    logger.info("workDir", workDir) // Replace console.log with logger
 
-    console.log("Writing code to file")
+    // Write the code to a file
+    logger.info("Writing code to file") // Replace console.log with logger
     const fileName = `Solution.${config.fileExtension}`
     const filePath = path.join(workDir, fileName)
     await writeFile(filePath, code)
 
-    console.log("Writing package.json to temporary directory")
-    const packageJsonContent = JSON.stringify(
-        {
-            name: "temp-project",
-            version: "1.0.0",
-            main: `Solution.${config.fileExtension}`,
-            scripts: {
-                start: `ts-node ${fileName}`, // Corrected start script
-                build: config.buildCommand ? config.buildCommand : ""
-            },
-            devDependencies: {
-                "ts-node": "^10.0.0", // Specify the version as needed
-                typescript: "^4.0.0" // Specify the version as needed
-            }
-        },
-        null,
-        2
-    )
+    // Conditionally create package.json if required
+    if (config.requiresPackageJson && config.packageJson) {
+        logger.info("!!!!!!!!!! Writing package.json to temporary directory") // Replace console.log with logger
+        const packageJsonContent = JSON.stringify(config.packageJson, null, 2)
+        const packageJsonPath = path.join(workDir, "package.json")
+        await writeFile(packageJsonPath, packageJsonContent)
+    }
 
-    const packageJsonPath = path.join(workDir, "package.json")
-    await writeFile(packageJsonPath, packageJsonContent)
+    // Optionally handle additional dependencies (e.g., requirements.txt for Python)
+    if (language.toLowerCase() === "python" && request.dependencies) {
+        logger.info("Writing requirements.txt to temporary directory") // Replace console.log with logger
+        const requirementsPath = path.join(workDir, "requirements.txt")
+        await writeFile(requirementsPath, request.dependencies.join("\n"))
+    }
 
-    console.log("Creating Dockerfile")
-    const dockerfileContent = `FROM ${config.image}
+    logger.info("Creating Dockerfile") // Replace console.log with logger
+
+    let dockerfileContent = `FROM ${config.image}
 WORKDIR /usr/src/app
-COPY package*.json ./
+`
+
+    // If package.json exists, copy it and install dependencies
+    if (config.requiresPackageJson) {
+        dockerfileContent += `
+
+COPY package*.json ./ 
 RUN npm install
+`
+    }
+
+    // For Python, handle requirements.txt
+    if (language.toLowerCase() === "python" && request.dependencies) {
+        dockerfileContent += `
+
+COPY requirements.txt ./ 
+RUN pip install --no-cache-dir -r requirements.txt
+`
+    }
+
+    // Copy the source code
+    dockerfileContent += `
+
 COPY . .
-${config.buildCommand ? `RUN ${config.buildCommand}` : ""}
-CMD ["npm", "run", "start"]`
+`
+
+    // Add build command if exists
+    if (config.buildCommand) {
+        dockerfileContent += `RUN ${config.buildCommand}\n`
+    }
+
+    // Define the run command
+    if (language.toLowerCase() === "python" && input) {
+        dockerfileContent += `CMD ["sh", "-c", "echo \"$INPUT\" | ${config.runCommand}"]`
+    } else {
+        dockerfileContent += `CMD ["sh", "-c", "${config.runCommand}"]`
+    }
 
     // Write the Dockerfile to the temporary directory
-    console.log("dockerfileContent", dockerfileContent)
+    logger.info("dockerfileContent", dockerfileContent) // Replace console.log with logger
 
-    console.log("Creating Dockerfile")
+    logger.info("Creating Dockerfile") // Replace console.log with logger
     const dockerfilePath = path.join(workDir, "Dockerfile")
     await writeFile(dockerfilePath, dockerfileContent)
-    console.log("Dockerfile created")
+    logger.info("Dockerfile created") // Replace console.log with logger
 
     // Check if Dockerfile exists before building the image
     if (!fs.existsSync(dockerfilePath)) {
@@ -119,40 +118,33 @@ CMD ["npm", "run", "start"]`
         throw new Error("Dockerfile was not created successfully.")
     }
 
-    const imageName = cachedImages[language] || `custom-image-${uniqueId}` // Check cache
-    if (!cachedImages[language]) {
-        await buildDockerImage(imageName, workDir)
-        cachedImages[language] = imageName // Cache the image
-    }
+    const imageName = `custom-image-${uniqueId}` // Always create a new image
 
-    console.log("Creating Docker container")
+    await buildDockerImage(imageName, workDir, language.toLowerCase(), request)
+
+    logger.info("Creating Docker container") // Replace console.log with logger
     const container = await docker.createContainer({
         Image: imageName,
         Tty: false,
         AttachStdout: true,
         AttachStderr: true,
-        WorkingDir: "/usr/src/app/", // Matches Dockerfile WORKDIR
+        WorkingDir: "/usr/src/app/",
+        Env: input ? [`INPUT=${input}`] : [],
         HostConfig: {
             AutoRemove: true,
             NetworkMode: "bridge",
-            Memory: 64 * 1024 * 1024, // 64MB
+            Memory: 128 * 1024 * 1024, // 128MB
             CpuShares: 256,
             Dns: ["8.8.8.8", "8.8.4.4"]
         }
     })
 
     try {
-        console.log("Uploading code to container")
-        // Upload code to container (if needed)
-        // In this setup, code is already included in the image via Dockerfile COPY
-        // So, this step might be redundant. Consider removing it.
-        // await container.putArchive(tarStream, { path: "/usr/src/app/" });
-
-        console.log("Starting container")
+        logger.info("Starting container") // Replace console.log with logger
         // Start the container
         await container.start()
 
-        console.log("Attaching to container output")
+        logger.info("Attaching to container output") // Replace console.log with logger
         // Attach to the container's output
         const logs = await container.logs({
             stdout: true,
@@ -164,141 +156,132 @@ CMD ["npm", "run", "start"]`
         let stdout = ""
         const stderr = ""
 
-        logs.on("data", (chunk: Buffer) => {
-            const log = chunk.toString("utf-8").replace(/[^\x20-\x7E]/g, "") // Filter non-printable characters
-            logsOutput += log
-            console.log("Container output:", log)
-            stdout = log // Capture only the last log line as stdout
+        // Create a promise to wait for logs to finish
+        const logsPromise = new Promise<void>((resolve) => {
+            logs.on("data", (chunk: Buffer) => {
+                const log = chunk.toString("utf-8").replace(/[^\x20-\x7E]/g, "") // Filter non-printable characters
+                logsOutput += log
+                logger.info("Container output:", log) // Replace console.log with logger
+                stdout = log // Capture only the last log line as stdout
+            })
+
+            logs.on("end", () => {
+                logger.info("Logs stream ended") // Replace console.log with logger
+                logger.info("logsOutput", logsOutput) // Replace console.log with logger
+                resolve() // Resolve the promise when logs end
+            })
         })
 
-        logs.on("error", (error: Error) => {
-            console.error("Error reading logs:", error)
-            logsOutput += error.message
-        })
+        // Wait for logs to finish before continuing
+        await logsPromise // Ensure this line is added to wait for logs
 
-        logs.on("end", () => {
-            console.log("Logs stream ended")
-            console.log("logsOutput", logsOutput)
-        })
-
-        console.log("Waiting for container to finish")
+        logger.info("Waiting for container to finish") // Replace console.log with logger
         // Wait for the container to finish
-        const exitCode = await container.wait()
+        // const exitCode = await container.wait()
 
-        console.log("Container finished with exit code:", exitCode.StatusCode)
+        // logger.info("Container finished with exit code:", exitCode.StatusCode) // Replace console.log with logger
+        logger.info({ stdout, stderr, logsOutput }) // Replace console.log with logger
         return {
             stdout, // Return captured stdout
             stderr,
-            error:
-                exitCode.StatusCode !== 0
-                    ? `Execution failed with status ${exitCode.StatusCode}`
-                    : undefined
+            error: undefined // Adjusted to remove exit code check
         }
     } catch (error) {
-        console.error("Error during code execution:", error)
+        logger.error("Error during code execution:", error) // Replace console.error with logger
         return {
             stdout: "",
             stderr: "",
             error: error instanceof Error ? error.message : String(error)
         }
     } finally {
-        console.log("Cleaning up")
+        logger.info("Cleaning up") // Replace console.log with logger
         try {
             fs.rmSync(workDir, { recursive: true, force: true }) // Ensure workDir is removed
-            console.log("workDir removed successfully")
+            logger.info("workDir removed successfully") // Replace console.log with logger
         } catch (err) {
-            console.error("Error removing workDir:", err) // Log any errors during removal
+            logger.error("Error removing workDir:", err) // Replace console.error with logger
         }
 
         try {
-            // Check if the container is still running before stopping
-            const containerInfo = await container.inspect()
-            if (containerInfo.State.Running) {
-                await container.stop() // Stop the container before removing
-            }
-            await container.remove()
-            console.log("Container removed successfully")
+            // Delete the Docker image
+            await docker.getImage(imageName).remove({
+                force: true
+            })
+            logger.info("Image removed successfully") // Replace console.log with logger
         } catch (err) {
-            console.error("Error removing container:", err)
+            logger.error("Error removing image:", err) // Replace console.error with logger
         }
-
-        // try {
-        //     // Delete the Docker image
-        //     await docker.getImage(imageName).remove()
-        //     console.log("Image removed successfully")
-        // } catch (err) {
-        //     console.error("Error removing image:", err)
-        // }
     }
 }
 
 // Helper function to build Docker images
+
 const buildDockerImage = async (
     imageName: string,
-    contextPath: string
+    contextPath: string,
+    language: string,
+    request: CodeExecutionRequest
 ): Promise<void> => {
-    console.log("Building Docker image:", imageName)
+    logger.info("Building Docker image:", imageName) // Replace console.log with logger
 
-    // Log the Dockerfile content for debugging
-    const dockerfilePath = path.join(contextPath, "Dockerfile")
-    const dockerfileContent = fs.readFileSync(dockerfilePath, "utf-8")
-    console.log("Dockerfile content:", dockerfileContent)
-
-    // Create a tar archive of the entire contextPath
     const pack = tarStream.pack()
 
-    // Function to add files to the tar archive
     const addFileToTar = (filePath: string, fileName: string) => {
         const fileContent = fs.readFileSync(filePath)
         pack.entry({ name: fileName }, fileContent)
     }
 
+    const config = getLanguageConfig(language.toLowerCase()) as LanguageConfig
+
     // Add Dockerfile
-    addFileToTar(dockerfilePath, "Dockerfile")
+    addFileToTar(path.join(contextPath, "Dockerfile"), "Dockerfile")
 
-    // Add package.json
-    const packageJsonPath = path.join(contextPath, "package.json")
-    addFileToTar(packageJsonPath, "package.json")
+    // Add package.json if exists
+    if (config.requiresPackageJson) {
+        addFileToTar(path.join(contextPath, "package.json"), "package.json")
+    }
 
-    // Add Solution.ts
-    const solutionPath = path.join(
-        contextPath,
-        `Solution.${languageConfigs.typescript.fileExtension}`
-    )
-    addFileToTar(
-        solutionPath,
-        `Solution.${languageConfigs.typescript.fileExtension}`
-    )
+    // Add requirements.txt for Python
+    if (language === "python" && request.dependencies) {
+        addFileToTar(
+            path.join(contextPath, "requirements.txt"),
+            "requirements.txt"
+        )
+    }
+
+    // Add the source code file
+    const sourceFileName = `Solution.${config.fileExtension}`
+    addFileToTar(path.join(contextPath, sourceFileName), sourceFileName)
 
     pack.finalize()
 
     return new Promise<void>((resolve, reject) => {
         docker.buildImage(pack, { t: imageName }, (err, stream) => {
             if (err) {
-                console.error("Error building Docker image:", err)
+                logger.error("Error building Docker image:", err) // Replace console.error with logger
                 return reject(err)
             }
             if (!stream) {
                 return reject(new Error("Stream is undefined"))
             }
-            // Log the build progress
+
             docker.modem.followProgress(
                 stream,
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (err: any) => {
                     if (err) {
-                        console.error(
+                        logger.error(
                             "Error following Docker build progress:",
                             err
-                        )
+                        ) // Replace console.error with logger
                         reject(err)
                     } else {
-                        console.log("Docker image built successfully")
+                        logger.info("Docker image built successfully") // Replace console.log with logger
                         resolve()
                     }
                 },
                 (progress) => {
-                    console.log("Build progress:", progress)
+                    logger.info("Build progress:", progress) // Replace console.log with logger
                 }
             )
         })
