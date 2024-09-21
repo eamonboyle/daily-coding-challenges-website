@@ -202,18 +202,19 @@ export async function POST(request: Request) {
                 score,
                 output: outputs.join("\n---\n"),
                 errorOutput: errors.join("\n---\n"),
-                executionTime:
-                    results.length > 0
-                        ? parseFloat(
-                              (
-                                  results.reduce(
-                                      (sum, result) =>
-                                          sum + (parseFloat(result.time) || 0),
-                                      0
-                                  ) / results.length
-                              ).toFixed(2)
-                          )
-                        : null,
+                // executionTime:
+                //     results.length > 0
+                //         ? parseFloat(
+                //               (
+                //                   results.reduce(
+                //                       (sum, result) =>
+                //                           sum + (parseFloat(result.time) || 0),
+                //                       0
+                //                   ) / results.length
+                //               ).toFixed(2)
+                //           )
+                //         : null,
+                executionTime: null,
                 memory: null
             }
         })
