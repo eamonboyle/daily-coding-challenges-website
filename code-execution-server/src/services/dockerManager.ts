@@ -4,13 +4,17 @@ import fs from "fs"
 import path from "path"
 import tarStream from "tar-stream"
 import logger from "../utils/logger"
-import { CodeExecutionRequest, LanguageConfig } from "../types"
+import { CachedImage, CodeExecutionRequest, LanguageConfig } from "../types"
 import { getLanguageConfig } from "../config/languageConfig"
 import crypto from "crypto"
 
 const docker = new Docker()
 
+const MAX_CACHE_SIZE = 50 // Maximum number of cached images
+const CACHE_EVICTION_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours
+
 export class DockerManager {
+    private static cachedImages: Map<string, CachedImage> = new Map()
     private static generateCacheKey(
         language: string,
         dependencies?: string[]
@@ -42,6 +46,8 @@ export class DockerManager {
         const imageExists = await this.checkImageExists(imageName)
         if (imageExists) {
             logger.info(`Using cached Docker image: ${imageName}`)
+            // update last used time
+            this.updateCacheUsage(imageName)
             return imageName
         }
 
@@ -55,7 +61,63 @@ export class DockerManager {
             language.toLowerCase(),
             request
         )
+        this.addToCache(imageName)
+
         return imageName
+    }
+
+    private static addToCache(imageName: string): void {
+        const now = Date.now()
+        this.cachedImages.set(imageName, { imageName, lastUsed: now })
+        logger.info(`Added to cache: ${imageName}`)
+        this.evictCacheIfNeeded()
+    }
+
+    private static updateCacheUsage(imageName: string): void {
+        const cachedImage = this.cachedImages.get(imageName)
+        if (cachedImage) {
+            cachedImage.lastUsed = Date.now()
+            this.cachedImages.set(imageName, cachedImage)
+            logger.info(`Updated cache usage: ${imageName}`)
+        } else {
+            // If not tracked yet, add it
+            this.cachedImages.set(imageName, {
+                imageName,
+                lastUsed: Date.now()
+            })
+            logger.info(`Updated cache usage: ${imageName}`)
+            this.evictCacheIfNeeded()
+        }
+    }
+
+    private static async evictCacheIfNeeded(): Promise<void> {
+        if (this.cachedImages.size <= MAX_CACHE_SIZE) return
+
+        // Sort images by lastUsed ascending (oldest first)
+        const sortedImages = Array.from(this.cachedImages.values()).sort(
+            (a, b) => a.lastUsed - b.lastUsed
+        )
+
+        const imagesToRemove = sortedImages.slice(
+            0,
+            this.cachedImages.size - MAX_CACHE_SIZE
+        )
+
+        for (const img of imagesToRemove) {
+            await this.removeImage(img.imageName)
+            this.cachedImages.delete(img.imageName)
+            logger.info(`Evicted cached Docker image: ${img.imageName}`)
+        }
+    }
+
+    // Initialize cache eviction at regular intervals
+    static initializeCacheEviction(): void {
+        setInterval(() => {
+            logger.info("Running cache eviction")
+            this.evictCacheIfNeeded().catch((err) => {
+                logger.error("Error during cache eviction:", err)
+            })
+        }, CACHE_EVICTION_INTERVAL)
     }
 
     private static async checkImageExists(imageName: string): Promise<boolean> {
@@ -242,3 +304,6 @@ export class DockerManager {
         }
     }
 }
+
+// Initialize cache eviction when the module is loaded
+DockerManager.initializeCacheEviction()

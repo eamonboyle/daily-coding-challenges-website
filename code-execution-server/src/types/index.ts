@@ -24,3 +24,8 @@ export interface LanguageConfig {
     requiresPackageJson?: boolean
     packageJson?: object // Optional: Define if package.json is needed
 }
+
+export interface CachedImage {
+    imageName: string
+    lastUsed: number
+}
