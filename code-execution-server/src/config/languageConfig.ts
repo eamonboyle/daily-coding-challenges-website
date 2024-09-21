@@ -1,12 +1,4 @@
-export interface LanguageConfig {
-    name: string
-    image: string
-    fileExtension: string
-    runCommand: string
-    buildCommand?: string
-    requiresPackageJson?: boolean
-    packageJson?: object // Optional: Define if package.json is needed
-}
+import { LanguageConfig } from "../types"
 
 export const languageConfigs: LanguageConfig[] = [
     {

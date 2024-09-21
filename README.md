@@ -2,6 +2,16 @@
 
 This is a [Next.js](https://nextjs.org) project designed to help developers improve their coding skills through daily challenges. It was bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## New Code Execution Server
+
+We have introduced a new project called **Code Execution Server**. This server allows users to run their code submissions in a secure environment, providing instant feedback on their solutions.
+
+### Tech Stack
+- **Node.js**: For server-side execution.
+- **Docker**: To create isolated environments for different programming languages.
+- **Express**: To handle API requests.
+- **MongoDB**: For storing user submissions and profiles.
+
 ## Getting Started
 
 First, run the development server:

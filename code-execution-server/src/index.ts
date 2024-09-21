@@ -3,12 +3,8 @@
 import express, { Request, Response } from "express"
 import bodyParser from "body-parser"
 import cors from "cors"
-import { executeCode } from "./services/codeExecutionService"
-import {
-    CodeExecutionRequest,
-    CodeExecutionResponse,
-    CodeExecutionError
-} from "./types"
+import { CodeExecutionRequest } from "./types"
+import { CodeExecutionService } from "./services/codeExecutionService"
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -23,19 +19,23 @@ app.get("/", (req: Request, res: Response) => {
 
 // Routes
 app.post("/execute", async (req: Request, res: Response) => {
-    const executionRequest: CodeExecutionRequest = req.body
-
-    console.log("test")
+    const request: CodeExecutionRequest = {
+        language: req.body.language,
+        code: req.body.code,
+        input: req.body.input,
+        dependencies: req.body.dependencies
+    }
 
     try {
-        const result: CodeExecutionResponse =
-            await executeCode(executionRequest)
-        res.json(result)
+        const response = await CodeExecutionService.executeCode(request)
+        res.json(response)
     } catch (error) {
-        // Remove 'any' type
-        const errorMessage =
-            (error as CodeExecutionError).message || "Internal Server Error" // Use a specific error type
-        res.status(500).json({ error: errorMessage })
+        console.log({ error })
+        res.status(500).json({
+            stdout: "",
+            stderr: "",
+            error: "Internal Server Error"
+        })
     }
 })
 

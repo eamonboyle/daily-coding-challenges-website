@@ -2,11 +2,10 @@ import Docker from "dockerode"
 import fs from "fs"
 import path from "path"
 import * as tarStream from "tar-stream"
-import { LanguageConfig } from "../config/languageConfig"
+import { LanguageConfig } from "../types"
 
 export class DockerService {
     private docker: Docker
-    private cachedImages: Record<string, string> = {}
 
     constructor() {
         this.docker = new Docker()
