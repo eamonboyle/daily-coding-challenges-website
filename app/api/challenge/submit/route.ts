@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { getLanguageById } from "@/lib/languages"
-import axios from "axios"
 import { prisma } from "@/lib/prisma"
 import { extractFunctionName, languageTemplates } from "@/lib/templates"
 import { TestCase } from "@prisma/client"
 
-// Define environment variables for Judge0 API
-const JUDGE0_API_URL = process.env.JUDGE0_API_URL
-const JUDGE0_API_KEY = process.env.JUDGE0_API_KEY
-const JUDGE0_API_HOST = process.env.JUDGE0_API_HOST
+// Define environment variable for your backend service
+const CODE_EXECUTION_API_URL =
+    process.env.CODE_EXECUTION_API_URL || "http://localhost:5000"
 
 export async function POST(request: Request) {
     try {
@@ -77,7 +75,7 @@ export async function POST(request: Request) {
         if (!functionName) {
             return NextResponse.json(
                 {
-                    error: "UUnable to determine function name from the submitted code."
+                    error: "Unable to determine function name from the submitted code."
                 },
                 { status: 400 }
             )
@@ -103,63 +101,81 @@ export async function POST(request: Request) {
         // Function to wrap user's code with test case
         const wrapCode = (userCode: string, testCase: TestCase): string => {
             const wrappedCode = template.wrapper
-                .replace("{{USER_CODE}}", userCode)
-                .replace("{{FUNCTION_NAME}}", functionName)
+                .replace("<USER_CODE>", userCode)
+                .replace("<FUNCTION_NAME>", functionName)
                 .replace(
-                    "{{TEST_INPUT}}",
+                    "<TEST_INPUT>",
                     formatTestInput(testCase.input, language.id)
                 )
             return wrappedCode
         }
 
-        // Function to submit code to Judge0
-        const submitToJudge0 = async (input: string) => {
-            const response = await axios.post(
-                `${JUDGE0_API_URL}/submissions?wait=true`,
-                {
-                    source_code: code,
-                    language_id: challenge.languageId,
-                    stdin: input
+        // Function to submit code to your backend service using native fetch
+        const submitToExecutionService = async (
+            language: string,
+            code: string,
+            input: string
+        ) => {
+            const response = await fetch(`${CODE_EXECUTION_API_URL}/execute`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
                 },
-                {
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-RapidAPI-Key": JUDGE0_API_KEY,
-                        "X-RapidAPI-Host": JUDGE0_API_HOST
-                    }
-                }
-            )
-            return response.data
+                body: JSON.stringify({
+                    language,
+                    code,
+                    input
+                })
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(errorData.error || "Failed to execute code")
+            }
+
+            const data = await response.json()
+            return data // { stdout: string, stderr: string }
         }
 
         // Initialize variables for scoring and results
         let totalScore = 0
         const maxScore = testCases.length * 100
         let passedTests = 0
-        const outputs = []
-        const errors = []
-        const results = []
+        const outputs: string[] = []
+        const errors: string[] = []
+        const results: { stdout: string; stderr: string }[] = []
 
         // Process each test case
         for (const testCase of testCases) {
             const wrappedCode = wrapCode(code, testCase)
-            console.log({ wrappedCode })
-            const result = await submitToJudge0(wrappedCode)
+            let result
+
+            try {
+                result = await submitToExecutionService(
+                    language.name.toLowerCase(),
+                    wrappedCode,
+                    ""
+                )
+
+                console.log({ code, testCase, wrappedCode, result })
+            } catch (error: any) {
+                // Handle execution service errors
+                result = {
+                    stdout: "",
+                    stderr: error.message || "Execution failed"
+                }
+            }
 
             results.push(result)
             outputs.push(result.stdout)
             errors.push(result.stderr)
 
-            if (result.status.id === 3) {
-                if (result.stdout === null) {
-                    console.log("result.stdout is null")
-                    continue
-                }
-                // Check if output matches expected output
+            // Determine status based on stderr
+            const status = result.stderr ? "error" : "success"
+
+            if (status === "success") {
                 const userOutput = result.stdout.trim()
                 const expectedOutput = testCase.expectedOutput.trim()
-
-                console.log({ userOutput, expectedOutput })
 
                 if (userOutput === expectedOutput) {
                     totalScore += 100

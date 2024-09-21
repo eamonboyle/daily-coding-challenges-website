@@ -13,17 +13,43 @@ const docker = new Docker()
 const MAX_CACHE_SIZE = 50 // Maximum number of cached images
 const CACHE_EVICTION_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours
 
+const CACHE_METADATA_PATH = path.join(__dirname, "../cacheMetadata.json")
+
 export class DockerManager {
     private static cachedImages: Map<string, CachedImage> = new Map()
+    private static buildPromises: Map<string, Promise<void>> = new Map()
+
+    private static loadCacheMetadata(): void {
+        if (fs.existsSync(CACHE_METADATA_PATH)) {
+            const data = fs.readFileSync(CACHE_METADATA_PATH, "utf-8")
+            const parsed: CachedImage[] = JSON.parse(data)
+            parsed.forEach((img) => {
+                this.cachedImages.set(img.imageName, img)
+            })
+            logger.info("Loaded cache metadata from file")
+        }
+    }
+
+    // Save cache metadata to file
+    private static saveCacheMetadata(): void {
+        const data = Array.from(this.cachedImages.values())
+        fs.writeFileSync(CACHE_METADATA_PATH, JSON.stringify(data, null, 2))
+        logger.info("Saved cache metadata to file")
+    }
+
     private static generateCacheKey(
         language: string,
-        dependencies?: string[]
+        dependencies?: string[],
+        baseImage?: string
     ): string {
         const hash = crypto.createHash("sha256")
         hash.update(language)
         if (dependencies && dependencies.length > 0) {
             const sortedDeps = dependencies.sort().join(",")
             hash.update(sortedDeps)
+        }
+        if (baseImage) {
+            hash.update(baseImage)
         }
         return hash.digest("hex")
     }
@@ -33,12 +59,16 @@ export class DockerManager {
         language: string,
         request: CodeExecutionRequest
     ): Promise<string> {
+        const config = getLanguageConfig(
+            language.toLowerCase()
+        ) as LanguageConfig
         const dependencies = request.dependencies || []
 
         // Generate cache key
         const cacheKey = this.generateCacheKey(
             language.toLowerCase(),
-            dependencies
+            dependencies,
+            config.image
         )
         const imageName = `cached-image-${cacheKey}`
 
@@ -46,22 +76,39 @@ export class DockerManager {
         const imageExists = await this.checkImageExists(imageName)
         if (imageExists) {
             logger.info(`Using cached Docker image: ${imageName}`)
-            // update last used time
             this.updateCacheUsage(imageName)
             return imageName
         }
 
-        // Build the image since it doesn't exist
-        logger.info(
-            `Cached image not found. Building new Docker image: ${imageName}`
-        )
-        await this.buildImage(
+        // Check if a build is already in progress for this image
+        if (this.buildPromises.has(imageName)) {
+            logger.info(
+                `Build in progress for Docker image: ${imageName}. Awaiting completion.`
+            )
+            await this.buildPromises.get(imageName)
+            this.updateCacheUsage(imageName)
+            return imageName
+        }
+
+        // Start building the image and track the promise
+        const buildPromise = this.buildImage(
             imageName,
             contextPath,
             language.toLowerCase(),
             request
         )
-        this.addToCache(imageName)
+            .then(() => {
+                this.addToCache(imageName)
+                this.buildPromises.delete(imageName)
+            })
+            .catch((err) => {
+                this.buildPromises.delete(imageName)
+                throw err
+            })
+
+        this.buildPromises.set(imageName, buildPromise)
+
+        await buildPromise
 
         return imageName
     }
@@ -70,6 +117,7 @@ export class DockerManager {
         const now = Date.now()
         this.cachedImages.set(imageName, { imageName, lastUsed: now })
         logger.info(`Added to cache: ${imageName}`)
+        this.saveCacheMetadata()
         this.evictCacheIfNeeded()
     }
 
@@ -86,6 +134,7 @@ export class DockerManager {
                 lastUsed: Date.now()
             })
             logger.info(`Updated cache usage: ${imageName}`)
+            this.saveCacheMetadata()
             this.evictCacheIfNeeded()
         }
     }
@@ -93,7 +142,10 @@ export class DockerManager {
     private static async evictCacheIfNeeded(): Promise<void> {
         if (this.cachedImages.size <= MAX_CACHE_SIZE) return
 
-        // Sort images by lastUsed ascending (oldest first)
+        logger.info(
+            `Evicting cache: current size is ${this.cachedImages.size}, max size is ${MAX_CACHE_SIZE}`
+        )
+
         const sortedImages = Array.from(this.cachedImages.values()).sort(
             (a, b) => a.lastUsed - b.lastUsed
         )
@@ -103,15 +155,19 @@ export class DockerManager {
             this.cachedImages.size - MAX_CACHE_SIZE
         )
 
+        logger.info(`Evicting ${imagesToRemove.length} images from cache`)
+
         for (const img of imagesToRemove) {
             await this.removeImage(img.imageName)
             this.cachedImages.delete(img.imageName)
             logger.info(`Evicted cached Docker image: ${img.imageName}`)
         }
+        this.saveCacheMetadata()
     }
 
     // Initialize cache eviction at regular intervals
     static initializeCacheEviction(): void {
+        this.loadCacheMetadata()
         setInterval(() => {
             logger.info("Running cache eviction")
             this.evictCacheIfNeeded().catch((err) => {
