@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation"
-import prisma from "@/lib/prisma"
 import { auth } from "@clerk/nextjs/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BreadcrumbContainer } from "@/components/BreadcrumbContainer"
 import MonacoEditor from "@/components/MonacoEditor"
+import { prisma } from "@/lib/prisma"
 
 async function getSubmission(submissionId: string) {
     const { userId } = auth()

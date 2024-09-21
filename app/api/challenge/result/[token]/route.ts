@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
 import axios from "axios"
-import { PrismaClient } from "@prisma/client"
-
-const prisma = new PrismaClient()
+import { prisma } from "@/lib/prisma"
 
 const JUDGE0_API_URL = process.env.JUDGE0_API_URL
 const JUDGE0_API_KEY = process.env.JUDGE0_API_KEY

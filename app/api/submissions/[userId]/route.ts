@@ -1,7 +1,5 @@
+import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
-import { PrismaClient } from "@prisma/client"
-
-const prisma = new PrismaClient()
 
 export async function GET(
     request: Request,
@@ -9,12 +7,12 @@ export async function GET(
 ) {
     try {
         const { searchParams } = new URL(request.url)
-        const page = parseInt(searchParams.get('page') || '1', 10)
-        const limit = parseInt(searchParams.get('limit') || '10', 10)
+        const page = parseInt(searchParams.get("page") || "1", 10)
+        const limit = parseInt(searchParams.get("limit") || "10", 10)
         const skip = (page - 1) * limit
 
         const user = await prisma.user.findUnique({
-            where: { clerkId: params.userId },
+            where: { clerkId: params.userId }
         })
 
         if (!user) {
@@ -30,23 +28,23 @@ export async function GET(
                 orderBy: { createdAt: "desc" },
                 include: { challenge: true },
                 skip,
-                take: limit,
+                take: limit
             }),
             prisma.submission.count({
-                where: { userId: user.id },
-            }),
+                where: { userId: user.id }
+            })
         ])
 
         const formattedSubmissions = submissions.map((submission) => ({
             ...submission,
-            challengeTitle: submission.challenge.title,
+            challengeTitle: submission.challenge.title
         }))
 
         return NextResponse.json({
             submissions: formattedSubmissions,
             total: totalCount,
             page,
-            limit,
+            limit
         })
     } catch (error) {
         console.error("Error fetching submissions:", error)

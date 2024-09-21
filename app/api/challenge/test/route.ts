@@ -1,17 +1,9 @@
 // app/api/submit-code/route.ts
 
+import { prisma } from "@/lib/prisma"
 import { auth } from "@clerk/nextjs/server"
-import { PrismaClient } from "@prisma/client"
 import { NextResponse } from "next/server"
 import vm from "vm"
-
-interface TestCase {
-    input: string
-    expected: string
-    test: string
-}
-
-const prisma = global.prisma || new PrismaClient()
 
 export async function POST(request: Request) {
     try {
@@ -49,7 +41,8 @@ export async function POST(request: Request) {
             where: {
                 date: today,
                 userId: user.id
-            }
+            },
+            include: { testCases: true }
         })
         if (!challenge) {
             return NextResponse.json(
@@ -59,7 +52,7 @@ export async function POST(request: Request) {
         }
 
         // 5. Run the code against the challenge's test cases
-        const testCases = challenge.testCases as TestCase[] | null
+        const testCases = challenge.testCases
         const results = []
 
         if (testCases && Array.isArray(testCases)) {
@@ -95,9 +88,9 @@ export async function POST(request: Request) {
                     // Record the result
                     results.push({
                         input: testCase.input,
-                        expected: testCase.expected,
+                        expected: testCase.expectedOutput,
                         actual,
-                        passed: actual === testCase.expected
+                        passed: actual === testCase.expectedOutput
                     })
                 } catch (error) {
                     // If there's an error, record it as a failed test

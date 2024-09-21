@@ -1,11 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server"
 import { auth } from "@clerk/nextjs/server"
-import { PrismaClient } from "@prisma/client"
 import { getLanguageById } from "@/lib/languages"
 import axios from "axios"
-
-const prisma = new PrismaClient()
+import { prisma } from "@/lib/prisma"
 
 const JUDGE0_API_URL = process.env.JUDGE0_API_URL
 const JUDGE0_API_KEY = process.env.JUDGE0_API_KEY

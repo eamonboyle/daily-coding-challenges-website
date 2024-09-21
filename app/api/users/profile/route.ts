@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
-import { PrismaClient } from "@prisma/client"
 import { auth } from "@clerk/nextjs/server"
-
-const prisma = new PrismaClient()
+import { prisma } from "@/lib/prisma"
 
 export async function GET() {
     try {
@@ -43,10 +41,7 @@ export async function PUT(request: Request) {
         const { userId: clerkId } = auth()
 
         if (!clerkId) {
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401 }
-            )
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
         const { username, email, bio } = await request.json()
@@ -56,8 +51,8 @@ export async function PUT(request: Request) {
             data: {
                 username,
                 email,
-                bio,
-            },
+                bio
+            }
         })
 
         return NextResponse.json(updatedUser)
