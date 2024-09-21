@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/services/DockerManager.ts
-
 import Docker from "dockerode"
 import fs from "fs"
 import path from "path"
@@ -8,10 +6,70 @@ import tarStream from "tar-stream"
 import logger from "../utils/logger"
 import { CodeExecutionRequest, LanguageConfig } from "../types"
 import { getLanguageConfig } from "../config/languageConfig"
+import crypto from "crypto"
 
 const docker = new Docker()
 
 export class DockerManager {
+    private static generateCacheKey(
+        language: string,
+        dependencies?: string[]
+    ): string {
+        const hash = crypto.createHash("sha256")
+        hash.update(language)
+        if (dependencies && dependencies.length > 0) {
+            const sortedDeps = dependencies.sort().join(",")
+            hash.update(sortedDeps)
+        }
+        return hash.digest("hex")
+    }
+
+    static async buildImageWithCache(
+        contextPath: string,
+        language: string,
+        request: CodeExecutionRequest
+    ): Promise<string> {
+        const dependencies = request.dependencies || []
+
+        // Generate cache key
+        const cacheKey = this.generateCacheKey(
+            language.toLowerCase(),
+            dependencies
+        )
+        const imageName = `cached-image-${cacheKey}`
+
+        // Check if the image already exists
+        const imageExists = await this.checkImageExists(imageName)
+        if (imageExists) {
+            logger.info(`Using cached Docker image: ${imageName}`)
+            return imageName
+        }
+
+        // Build the image since it doesn't exist
+        logger.info(
+            `Cached image not found. Building new Docker image: ${imageName}`
+        )
+        await this.buildImage(
+            imageName,
+            contextPath,
+            language.toLowerCase(),
+            request
+        )
+        return imageName
+    }
+
+    private static async checkImageExists(imageName: string): Promise<boolean> {
+        try {
+            const images = await docker.listImages({
+                filters: { reference: [imageName] }
+            })
+            return images.length > 0
+        } catch (err) {
+            logger.error("Error checking Docker images:", err)
+            return false
+        }
+    }
+
     static async buildImage(
         imageName: string,
         contextPath: string,

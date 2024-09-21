@@ -72,10 +72,7 @@ export class CodeExecutionService {
             await FileManager.writeFileAsync(dockerfilePath, dockerfileContent)
             logger.info("Dockerfile created")
 
-            // Build Docker image
-            const imageName = `code-execution-image-${Date.now()}` // Updated prefix
-            await DockerManager.buildImage(
-                imageName,
+            const imageName = await DockerManager.buildImageWithCache(
                 workDir,
                 language.toLowerCase(),
                 request
