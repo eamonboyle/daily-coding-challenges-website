@@ -2,63 +2,64 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+    provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
 }
 
 model User {
-  id                String           @id @default(cuid())
-  clerkId           String           @unique
-  email             String?          @unique
-  username          String           @unique
-  preferredLanguage String
-  preferredLanguageId Int
-  emailAlerts       Boolean          @default(true)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  submissions       Submission[]
-  dailyChallenges   DailyChallenge[]
+    id                  String           @id @default(cuid())
+    clerkId             String           @unique
+    email               String?          @unique
+    username            String           @unique
+    bio                 String?
+    preferredLanguage   String
+    preferredLanguageId Int
+    emailAlerts         Boolean          @default(true)
+    createdAt           DateTime         @default(now())
+    updatedAt           DateTime         @updatedAt
+    submissions         Submission[]
+    dailyChallenges     DailyChallenge[]
 }
 
 model DailyChallenge {
-  id             String           @id @default(cuid())
-  date           DateTime
-  title          String
-  description    String
-  difficulty     String
-  solution       String
-  language       String?          @default("javascript")
-  languageId Int
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  submissions    Submission[]
-  user           User             @relation(fields: [userId], references: [id])
-  userId         String
+    id          String       @id @default(cuid())
+    date        DateTime
+    title       String
+    description String
+    difficulty  String
+    solution    String
+    language    String?      @default("javascript")
+    languageId  Int
+    createdAt   DateTime     @default(now())
+    updatedAt   DateTime     @updatedAt
+    submissions Submission[]
+    user        User         @relation(fields: [userId], references: [id])
+    userId      String
 
-  testCases Json?
+    testCases Json?
 
-  @@unique([date, userId])
+    @@unique([date, userId])
 }
 
 model Submission {
-  id             String           @id @default(cuid())
-  userId         String
-  challengeId    String
-  code           String
-  language       String
-  languageId     Int
-  status         String
-  executionTime  Float?
-  memory         Float?
-  score          Int
-  attempts       Int              @default(1)
-  judge0Token    String?          // Add this line
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  user           User             @relation(fields: [userId], references: [id])
-  challenge      DailyChallenge   @relation(fields: [challengeId], references: [id])
+    id            String         @id @default(cuid())
+    userId        String
+    challengeId   String
+    code          String
+    language      String
+    languageId    Int
+    status        String
+    executionTime Float?
+    memory        Float?
+    score         Int
+    attempts      Int            @default(1)
+    judge0Token   String? // Add this line
+    createdAt     DateTime       @default(now())
+    updatedAt     DateTime       @updatedAt
+    user          User           @relation(fields: [userId], references: [id])
+    challenge     DailyChallenge @relation(fields: [challengeId], references: [id])
 }

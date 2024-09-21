@@ -4,6 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs"
 import Header from "../components/Header"
 import Footer from "../components/Footer"
 import { ThemeProvider } from "../components/ThemeProvider"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -29,6 +30,7 @@ export default function RootLayout({
                     disableTransitionOnChange
                 >
                     <ClerkProvider>
+                        <Toaster />
                         <Header />
                         <main className="container mx-auto mt-8 px-4 flex-grow">
                             {children}
