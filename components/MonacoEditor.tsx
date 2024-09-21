@@ -6,13 +6,17 @@ import { useTheme } from "next-themes"
 interface MonacoEditorProps {
     language: string
     value: string
-    onChange: (value: string | undefined) => void
+    onChange?: (value: string | undefined) => void
+    readOnly?: boolean
+    showMinimap?: boolean
 }
 
 export default function MonacoEditor({
     language,
     value,
-    onChange
+    onChange,
+    readOnly = false,
+    showMinimap = false
 }: MonacoEditorProps) {
     const { theme } = useTheme()
 
@@ -24,7 +28,8 @@ export default function MonacoEditor({
             theme={theme === "dark" ? "vs-dark" : "light"}
             onChange={onChange}
             options={{
-                minimap: { enabled: false },
+                readOnly: readOnly,
+                minimap: { enabled: showMinimap },
                 fontSize: 14,
                 lineNumbers: "on",
                 roundedSelection: false,
