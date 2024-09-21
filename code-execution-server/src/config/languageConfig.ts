@@ -61,7 +61,7 @@ export const languageConfigs: LanguageConfig[] = [
         runCommand: "./Solution"
     },
     {
-        name: " csharp",
+        name: "csharp",
         image: "mcr.microsoft.com/dotnet/sdk:6.0",
         fileExtension: "cs",
         buildCommand: "dotnet build",
@@ -110,7 +110,7 @@ export const languageConfigs: LanguageConfig[] = [
         runCommand: "erl -s Solution start"
     },
     {
-        name: "     elixir",
+        name: "elixir",
         image: "elixir:1.15-alpine",
         fileExtension: "ex",
         buildCommand: "elixir -o Solution Solution.ex",
