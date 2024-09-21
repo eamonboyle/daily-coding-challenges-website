@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/services/DockerManager.ts
 
 import Docker from "dockerode"
@@ -8,7 +9,6 @@ import logger from "../utils/logger"
 import { CodeExecutionRequest, LanguageConfig } from "../types"
 import { getLanguageConfig } from "../config/languageConfig"
 import crypto from "crypto"
-import { FileManager } from "./fileManager"
 
 const docker = new Docker()
 
@@ -19,6 +19,8 @@ interface CachedImage {
 
 const MAX_CACHE_SIZE = 50 // Maximum number of cached images
 const CACHE_EVICTION_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours
+
+const CACHE_METADATA_PATH = path.join(__dirname, "../cacheMetadata.json")
 
 export class DockerManager {
     private static cachedImages: Map<string, CachedImage> = new Map()
@@ -138,6 +140,7 @@ export class DockerManager {
     private static async buildBaseImage(
         imageName: string,
         language: string,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         request: CodeExecutionRequest
     ): Promise<void> {
         logger.info(`Building Docker base image: ${imageName}`)
@@ -187,6 +190,7 @@ export class DockerManager {
 
                 docker.modem.followProgress(
                     stream,
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     (buildErr: any, output: any) => {
                         if (buildErr) {
                             logger.error("Error during Docker build:", buildErr)
@@ -299,18 +303,52 @@ export class DockerManager {
     }
 
     /**
-     * Adds an image to the cache tracking.
-     * @param imageName The name of the Docker image.
+     * Loads cache metadata from the JSON file.
+     */
+    private static loadCacheMetadata(): void {
+        if (fs.existsSync(CACHE_METADATA_PATH)) {
+            const data = fs.readFileSync(CACHE_METADATA_PATH, "utf-8")
+            const parsed: CachedImage[] = JSON.parse(data)
+            parsed.forEach((img) => {
+                this.cachedImages.set(img.imageName, img)
+            })
+            logger.info("Loaded cache metadata from file")
+        }
+    }
+
+    /**
+     * Saves cache metadata to the JSON file.
+     */
+    private static saveCacheMetadata(): void {
+        const data = Array.from(this.cachedImages.values())
+        fs.writeFileSync(CACHE_METADATA_PATH, JSON.stringify(data, null, 2))
+        logger.info("Saved cache metadata to file")
+    }
+
+    /**
+     * Initializes cache eviction and loads existing cache metadata.
+     */
+    static initializeCacheEviction(): void {
+        this.loadCacheMetadata()
+        setInterval(() => {
+            this.evictCacheIfNeeded().catch((err) => {
+                logger.error("Error during cache eviction:", err)
+            })
+        }, CACHE_EVICTION_INTERVAL)
+    }
+
+    /**
+     * Adds an image to the cache and saves metadata.
      */
     private static addToCache(imageName: string): void {
         const now = Date.now()
         this.cachedImages.set(imageName, { imageName, lastUsed: now })
+        this.saveCacheMetadata()
         this.evictCacheIfNeeded()
     }
 
     /**
-     * Updates the last used timestamp of a cached image.
-     * @param imageName The name of the Docker image.
+     * Updates cache usage and saves metadata.
      */
     private static updateCacheUsage(imageName: string): void {
         const cachedImage = this.cachedImages.get(imageName)
@@ -325,6 +363,7 @@ export class DockerManager {
             })
             this.evictCacheIfNeeded()
         }
+        this.saveCacheMetadata()
     }
 
     /**
@@ -348,17 +387,6 @@ export class DockerManager {
             this.cachedImages.delete(img.imageName)
             logger.info(`Evicted cached Docker image: ${img.imageName}`)
         }
-    }
-
-    /**
-     * Initializes periodic cache eviction.
-     */
-    static initializeCacheEviction(): void {
-        setInterval(() => {
-            this.evictCacheIfNeeded().catch((err) => {
-                logger.error("Error during cache eviction:", err)
-            })
-        }, CACHE_EVICTION_INTERVAL)
     }
 }
 

@@ -6,10 +6,37 @@ import { ChevronRightIcon } from "@radix-ui/react-icons"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ModeToggle } from "@/components/ThemeToggle"
+import { useState } from "react"
 
 export default function Header() {
-    const { isSignedIn } = useUser()
+    const { isSignedIn, user } = useUser()
     const pathname = usePathname()
+
+    const [isClearing, setIsClearing] = useState(false)
+
+    const clearData = async () => {
+        if (
+            confirm(
+                "Are you sure you want to clear all data? This action cannot be undone."
+            )
+        ) {
+            setIsClearing(true)
+            try {
+                const response = await fetch("/api/test/clear-data", {
+                    method: "DELETE"
+                })
+                if (response.ok) {
+                    alert("Data cleared successfully")
+                } else {
+                    alert("Failed to clear data")
+                }
+            } catch (error) {
+                console.error("Error clearing data:", error)
+                alert("An error occurred while clearing data")
+            }
+            setIsClearing(false)
+        }
+    }
 
     const isActive = (path: string) => pathname === path
 
@@ -128,6 +155,17 @@ export default function Header() {
                         <li>
                             <ModeToggle />
                         </li>
+
+                        {user?.primaryEmailAddress?.emailAddress ===
+                            "blaowskate@hotmail.com" && (
+                            <button
+                                onClick={clearData}
+                                disabled={isClearing}
+                                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                            >
+                                {isClearing ? "Clearing..." : "Clear All Data"}
+                            </button>
+                        )}
                     </ul>
                 </nav>
             </div>
