@@ -20,6 +20,8 @@ export default function MonacoEditor({
 }: MonacoEditorProps) {
     const { theme } = useTheme()
 
+    // TODO: Expose more options
+
     return (
         <Editor
             height="400px"
@@ -34,7 +36,11 @@ export default function MonacoEditor({
                 lineNumbers: "on",
                 roundedSelection: false,
                 scrollBeyondLastLine: false,
-                automaticLayout: true
+                automaticLayout: true,
+                formatOnPaste: true,
+                wordWrap: "on",
+                autoIndent: "full",
+                tabSize: 4
             }}
         />
     )
