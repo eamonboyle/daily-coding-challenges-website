@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+    postgres:
+        container_name: daily-coding-challenges_postgres
+        image: postgres:latest
+        environment:
+            - POSTGRES_USER=daily_coding_challenge
+            - POSTGRES_PASSWORD=daily_coding_challenge
+            - POSTGRES_DB=daily_coding_challenge
+        volumes:
+            - daily_coding_challenges_data:/var/lib/postgresql/data
+        ports:
+            - "5432:5432"
+        restart: unless-stopped
+
+volumes:
+    daily_coding_challenges_data:

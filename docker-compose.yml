@@ -1,8 +1,9 @@
+version: '3.8'
 services:
     postgres:
         container_name: daily-coding-challenges_postgres
-        image: postgres:latest
-        env_file: .env
+        image: postgres:13
+        env_file: .env.docker
         environment:
             - POSTGRES_USER=${POSTGRES_USER}
             - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -23,9 +24,12 @@ services:
         build:
             context: .
             dockerfile: Dockerfile.nextjs
+            args:
+                - ENV_FILE=.env.docker
         ports:
             - "3000:3000"
-        env_file: .env
+        env_file:
+            - .env.docker
         environment:
             - DATABASE_URL=${DATABASE_URL}
             - CODE_EXECUTION_URL=${CODE_EXECUTION_URL}
@@ -41,6 +45,8 @@ services:
             dockerfile: Dockerfile.code-execution
         ports:
             - "5000:5000"
+        env_file:
+            - .env.docker
         restart: unless-stopped
         depends_on:
             - postgres

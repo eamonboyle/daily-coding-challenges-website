@@ -20,3 +20,6 @@ yarn-error.log
 # Ignore IDE and OS files
 .DS_Store
 Thumbs.db
+
+# Ignore local .env file
+.env
