@@ -45,36 +45,30 @@ export default function DailyChallenge() {
             if (response.ok) {
                 const data = await response.json()
                 setChallenge(data)
-                await fetchPastSubmission(data.id)
+
+                // Fetch past submission logic integrated here
+                const pastResponse = await fetch(
+                    `/api/challenge/past-submission?challengeId=${data.id}`
+                )
+                if (pastResponse.ok) {
+                    const pastData = await pastResponse.json()
+                    if (pastData && pastData.score === 100) {
+                        setPastSubmission(pastData)
+                        setCode(pastData.code)
+                    } else {
+                        setCode(getInitialCode(data.language || ""))
+                    }
+                }
             } else {
                 console.error("Failed to fetch challenge")
             }
         } catch (error) {
             console.error("Error fetching challenge:", error)
+            setCode(getInitialCode(challenge?.language || ""))
         } finally {
             setLoading(false)
         }
-    }, [])
-
-    const fetchPastSubmission = async (challengeId: string) => {
-        try {
-            const response = await fetch(
-                `/api/challenge/past-submission?challengeId=${challengeId}`
-            )
-            if (response.ok) {
-                const data = await response.json()
-                if (data && data.score === 100) {
-                    setPastSubmission(data)
-                    setCode(data.code)
-                } else {
-                    setCode(getInitialCode(challenge?.language || ""))
-                }
-            }
-        } catch (error) {
-            console.error("Error fetching past submission:", error)
-            setCode(getInitialCode(challenge?.language || ""))
-        }
-    }
+    }, [challenge?.language])
 
     useEffect(() => {
         fetchChallenge()

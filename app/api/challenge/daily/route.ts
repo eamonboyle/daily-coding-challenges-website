@@ -31,6 +31,7 @@ interface ChallengeResponse {
 }
 
 interface TestCaseResponse {
+    id: string
     input: string
     expectedOutput: string
 }
@@ -244,7 +245,8 @@ Format the response as an array of objects, for example:
 
             // Prepare data for bulk creation of test cases
             const testCaseData = generatedTestCases
-                .map((tc, index) => {
+                .map((tc: TestCaseResponse, index: number) => {
+                    // Specify type for tc
                     if (!tc.input || !tc.expectedOutput) {
                         logger.warn(
                             `Test case at index ${index} is missing input or expectedOutput`,
@@ -322,7 +324,7 @@ Format the response as an array of objects, for example:
             languageId: challenge.languageId,
             language: challenge.language,
             userId: challenge.userId,
-            testCases: challenge.testCases.map((tc) => ({
+            testCases: challenge.testCases.map((tc: TestCaseResponse) => ({
                 id: tc.id,
                 input: tc.input,
                 expectedOutput: tc.expectedOutput
