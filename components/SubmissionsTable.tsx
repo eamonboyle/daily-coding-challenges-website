@@ -26,7 +26,9 @@ interface SubmissionsTableProps {
 }
 
 export default function SubmissionsTable({ userId }: SubmissionsTableProps) {
-    const [submissions, setSubmissions] = useState<SubmissionWithChallenge[]>([])
+    const [submissions, setSubmissions] = useState<SubmissionWithChallenge[]>(
+        []
+    )
     const [loading, setLoading] = useState(true)
     const [currentPage, setCurrentPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
@@ -73,42 +75,78 @@ export default function SubmissionsTable({ userId }: SubmissionsTableProps) {
                 <Table>
                     <TableHeader>
                         <TableRow className="bg-gray-100 dark:bg-gray-800">
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">Date</TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">Challenge</TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">Language</TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">Status</TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">Score</TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">Action</TableHead>
+                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">
+                                Date
+                            </TableHead>
+                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">
+                                Challenge
+                            </TableHead>
+                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">
+                                Language
+                            </TableHead>
+                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">
+                                Status
+                            </TableHead>
+                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">
+                                Score
+                            </TableHead>
+                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">
+                                Action
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {submissions.map((submission) => (
-                            <TableRow key={submission.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                <TableCell className="py-3 px-4">{new Date(submission.createdAt).toLocaleDateString()}</TableCell>
-                                <TableCell className="py-3 px-4 font-medium">{submission.challenge.title}</TableCell>
-                                <TableCell className="py-3 px-4">{submission.language}</TableCell>
+                            <TableRow
+                                key={submission.id}
+                                className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
                                 <TableCell className="py-3 px-4">
-                                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                                        submission.status.toLowerCase() === "completed"
-                                            ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
-                                            : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
-                                    }`}>
-                                        {submission.status.charAt(0).toUpperCase() + submission.status.slice(1).toLowerCase()}
+                                    {new Date(
+                                        submission.createdAt
+                                    ).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell className="py-3 px-4 font-medium">
+                                    {submission.challenge.title}
+                                </TableCell>
+                                <TableCell className="py-3 px-4">
+                                    {submission.language}
+                                </TableCell>
+                                <TableCell className="py-3 px-4">
+                                    <span
+                                        className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                            submission.status.toLowerCase() ===
+                                            "completed"
+                                                ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
+                                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
+                                        }`}
+                                    >
+                                        {submission.status
+                                            .charAt(0)
+                                            .toUpperCase() +
+                                            submission.status
+                                                .slice(1)
+                                                .toLowerCase()}
                                     </span>
                                 </TableCell>
                                 <TableCell className="py-3 px-4">
-                                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                                        submission.score === 100
-                                            ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
-                                            : submission.score === 0
-                                            ? "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100"
-                                            : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
-                                    }`}>
+                                    <span
+                                        className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                            submission.score === 100
+                                                ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
+                                                : submission.score === 0
+                                                  ? "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100"
+                                                  : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
+                                        }`}
+                                    >
                                         {submission.score}
                                     </span>
                                 </TableCell>
                                 <TableCell className="py-3 px-4">
-                                    <Link href={`/dashboard/submissions/${submission.id}`} passHref>
+                                    <Link
+                                        href={`/dashboard/submissions/${submission.id}`}
+                                        passHref
+                                    >
                                         <Button variant="outline" size="sm">
                                             View
                                         </Button>
@@ -124,14 +162,24 @@ export default function SubmissionsTable({ userId }: SubmissionsTableProps) {
                 <PaginationContent>
                     <PaginationItem>
                         <PaginationPrevious
-                            className={currentPage === 1 ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-                            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                            className={
+                                currentPage === 1
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : "cursor-pointer"
+                            }
+                            onClick={() =>
+                                setCurrentPage((prev) => Math.max(prev - 1, 1))
+                            }
                         />
                     </PaginationItem>
                     {[...Array(totalPages)].map((_, index) => (
                         <PaginationItem key={index}>
                             <PaginationLink
-                                className={currentPage === index + 1 ? "bg-gray-200 dark:bg-gray-700" : "cursor-pointer"}
+                                className={
+                                    currentPage === index + 1
+                                        ? "bg-gray-200 dark:bg-gray-700"
+                                        : "cursor-pointer"
+                                }
                                 onClick={() => setCurrentPage(index + 1)}
                                 isActive={currentPage === index + 1}
                             >
@@ -141,8 +189,16 @@ export default function SubmissionsTable({ userId }: SubmissionsTableProps) {
                     ))}
                     <PaginationItem>
                         <PaginationNext
-                            className={currentPage === totalPages ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-                            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                            className={
+                                currentPage === totalPages
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : "cursor-pointer"
+                            }
+                            onClick={() =>
+                                setCurrentPage((prev) =>
+                                    Math.min(prev + 1, totalPages)
+                                )
+                            }
                         />
                     </PaginationItem>
                 </PaginationContent>

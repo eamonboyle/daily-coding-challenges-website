@@ -4,6 +4,7 @@ import { getLanguageById } from "@/lib/languages"
 import { prisma } from "@/lib/prisma"
 import { extractFunctionName, languageTemplates } from "@/lib/templates"
 import { TestCase } from "@prisma/client"
+import formatTestInput from "@/lib/formatTestInput"
 
 // Define environment variable for your backend service
 const CODE_EXECUTION_API_URL =
@@ -82,23 +83,6 @@ export async function POST(request: Request) {
             )
         }
 
-        const formatTestInput = (input: string, languageId: number): string => {
-            // Handle different input types and languages as needed
-            // For simplicity, assuming input is a string. Adjust as per your requirements.
-            if (languageId === 101) {
-                // TypeScript
-                return `"${input}"`
-            } else if (languageId === 100) {
-                // Python
-                return `"${input}"`
-            } else if (languageId === 91) {
-                // Java
-                return `"${input}"`
-            }
-            // Add more languages as needed
-            return input
-        }
-
         // Function to wrap user's code with test case
         const wrapCode = (userCode: string, testCase: TestCase): string => {
             const wrappedCode = template.wrapper
@@ -106,7 +90,11 @@ export async function POST(request: Request) {
                 .replace("{{FUNCTION_NAME}}", functionName)
                 .replace(
                     "{{TEST_INPUT}}",
-                    formatTestInput(testCase.input, language.id)
+                    formatTestInput(
+                        testCase.input,
+                        challenge.languageId,
+                        language.name
+                    )
                 )
             return wrappedCode
         }
@@ -203,18 +191,6 @@ export async function POST(request: Request) {
                 score,
                 output: outputs.join("\n---\n"),
                 errorOutput: errors.join("\n---\n"),
-                // executionTime:
-                //     results.length > 0
-                //         ? parseFloat(
-                //               (
-                //                   results.reduce(
-                //                       (sum, result) =>
-                //                           sum + (parseFloat(result.time) || 0),
-                //                       0
-                //                   ) / results.length
-                //               ).toFixed(2)
-                //           )
-                //         : null,
                 executionTime: parseFloat(
                     ((Date.now() - startTime) / 1000).toFixed(3)
                 ), // Calculate execution time in seconds as a float

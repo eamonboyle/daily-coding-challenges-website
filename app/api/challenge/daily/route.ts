@@ -5,14 +5,74 @@ import OpenAI from "openai"
 import { auth } from "@clerk/nextjs/server"
 import { getLanguageById } from "@/lib/languages"
 import { prisma } from "@/lib/prisma"
+import logger from "@/lib/logger" // Assuming you have a logger setup
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-function sanitizeJsonString(str: string): string {
-    return str
-        .replace(/[\n\r\t]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
+/**
+ * Extracts JSON content from a code block.
+ * @param str The input string containing the code block.
+ * @returns The extracted JSON string or null if not found.
+ */
+function extractJsonFromCodeBlock(str: string): string | null {
+    const jsonRegex = /```json\s*([\s\S]*?)```/i
+    const match = str.match(jsonRegex)
+    if (match && match[1]) {
+        return match[1]
+    }
+    return null
+}
+
+interface ChallengeResponse {
+    title: string
+    description: string
+    difficulty: string
+    solution: string
+}
+
+interface TestCaseResponse {
+    input: string
+    expectedOutput: string
+}
+
+const systemMessage = {
+    role: "system",
+    content:
+        "You are an assistant that provides coding challenges in strict JSON format. Always respond with a JSON object enclosed in a ```json code block."
+}
+
+const MAX_RETRIES = 3
+
+async function getValidJsonResponse(prompt: string): Promise<any> {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [systemMessage, { role: "user", content: prompt }],
+            temperature: 0.7
+        })
+
+        const rawContent = completion.choices[0].message.content || ""
+        const extractedJson = extractJsonFromCodeBlock(rawContent)
+
+        if (extractedJson) {
+            try {
+                return JSON.parse(extractedJson)
+            } catch (error) {
+                logger.error(
+                    `Attempt ${attempt}: Failed to parse JSON. Retrying...`,
+                    { error, extractedJson }
+                )
+            }
+        } else {
+            logger.error(
+                `Attempt ${attempt}: No JSON code block found. Retrying...`,
+                { rawContent }
+            )
+        }
+    }
+    throw new Error(
+        "Failed to retrieve valid JSON from OpenAI after multiple attempts."
+    )
 }
 
 export async function GET() {
@@ -51,7 +111,8 @@ export async function GET() {
             // Generate a new challenge using OpenAI
             const language = getLanguageById(user.preferredLanguageId)
 
-            console.log({ language })
+            logger.info("Selected language", { language })
+
             if (!language) {
                 return NextResponse.json(
                     { error: "Unsupported language" },
@@ -60,31 +121,34 @@ export async function GET() {
             }
 
             const prompt = `Generate a coding challenge with the following details in ${language.name}:
-            - Title
-            - Description
-            - Difficulty level (easy, medium, hard)
-            - Solution code
+- Title
+- Description
+- Difficulty level (easy, medium, hard)
+- Solution code
 
-            Format the response as a JSON object with the fields: title, description, difficulty, solution.`
+Respond **only** with a JSON object containing the fields: "title", "description", "difficulty", and "solution". The solution should return a single value for each input. Enclose the JSON in a code block with the "json" language specifier, like so:
 
-            console.log({ prompt })
+\`\`\`json
+{
+    "title": "Sample Title",
+    "description": "Sample Description",
+    "difficulty": "medium",
+    "solution": "Sample solution code"
+}
+\`\`\`
+`
 
-            const completion = await openai.chat.completions.create({
-                model: "gpt-3.5-turbo",
-                messages: [{ role: "user", content: prompt }],
-                temperature: 0.7
-            })
+            logger.info("Generating challenge with prompt", { prompt })
 
-            const rawContent = completion.choices[0].message.content || "{}"
-            const sanitizedContent = sanitizeJsonString(rawContent)
-
-            let generatedChallenge
+            let generatedChallenge: ChallengeResponse
 
             try {
-                generatedChallenge = JSON.parse(sanitizedContent)
-            } catch (parseError) {
-                console.error("Error parsing OpenAI response:", parseError)
-                console.error("Raw OpenAI response:", rawContent)
+                const challengeResponse = await getValidJsonResponse(prompt)
+                generatedChallenge = challengeResponse as ChallengeResponse
+            } catch (error: any) {
+                logger.error("Error generating challenge from OpenAI", {
+                    error
+                })
                 return NextResponse.json(
                     { error: "Error generating challenge" },
                     { status: 500 }
@@ -95,7 +159,9 @@ export async function GET() {
             const { title, description, difficulty, solution } =
                 generatedChallenge
             if (!title || !description || !difficulty || !solution) {
-                console.error("Incomplete challenge data:", generatedChallenge)
+                logger.error("Incomplete challenge data received from OpenAI", {
+                    generatedChallenge
+                })
                 return NextResponse.json(
                     { error: "Incomplete challenge data received from OpenAI" },
                     { status: 500 }
@@ -117,54 +183,47 @@ export async function GET() {
                 include: { testCases: true }
             })
 
-            challenge = await prisma.dailyChallenge.findUnique({
-                where: { id: challenge.id },
-                include: { testCases: true }
-            })
-
             if (!challenge) {
+                logger.error("Failed to create daily challenge")
                 return NextResponse.json(
-                    { error: "Challenge not found" },
-                    { status: 404 }
+                    { error: "Failed to create daily challenge" },
+                    { status: 500 }
                 )
             }
 
-            // Now, generate test cases based on the challenge description
-            const testCasePrompt = `Given the following coding challenge, provide 3-5 test cases in JSON format. Each test case should include an "input" and an "expectedOutput".
-
-            Challenge Title: ${title}
-            Challenge Description: ${description}
-            Language: ${language.name}
-
-            Format the response as an array of objects, for example:
-            [
-                {
-                    "input": "input1",
-                    "expectedOutput": "output1"
-                },
-                ...
-            ]`
-
-            const testCaseCompletion = await openai.chat.completions.create({
-                model: "gpt-3.5-turbo",
-                messages: [{ role: "user", content: testCasePrompt }],
-                temperature: 0.7
+            logger.info("Created new daily challenge", {
+                challengeId: challenge.id
             })
 
-            const rawTestCases =
-                testCaseCompletion.choices[0].message.content || "[]"
-            const sanitizedTestCases = sanitizeJsonString(rawTestCases)
+            // Now, generate test cases based on the challenge description
+            const testCasePrompt = `Given the following coding challenge, provide 3-5 test cases in JSON format. Each test case should include a single "input" and an "expectedOutput".
 
-            let generatedTestCases
+Challenge Title: ${title}
+Challenge Description: ${description}
+Language: ${language.name}
+
+Format the response as an array of objects, for example:
+[
+    {
+        "input": "singleInputValue as a string",
+        "expectedOutput": "singleExpectedOutputValue as a string"
+    },
+    ...
+]
+`
+
+            logger.info("Generating test cases with prompt", { testCasePrompt })
+
+            let generatedTestCases: TestCaseResponse[]
 
             try {
-                generatedTestCases = JSON.parse(sanitizedTestCases)
-            } catch (parseError) {
-                console.error(
-                    "Error parsing OpenAI test cases response:",
-                    parseError
-                )
-                console.error("Raw OpenAI test cases response:", rawTestCases)
+                const testCasesResponse =
+                    await getValidJsonResponse(testCasePrompt)
+                generatedTestCases = testCasesResponse as TestCaseResponse[]
+            } catch (error: any) {
+                logger.error("Error generating test cases from OpenAI", {
+                    error
+                })
                 return NextResponse.json(
                     { error: "Error generating test cases" },
                     { status: 500 }
@@ -173,10 +232,9 @@ export async function GET() {
 
             // Validate the structure of test cases
             if (!Array.isArray(generatedTestCases)) {
-                console.error(
-                    "Test cases are not in an array format:",
+                logger.error("Test cases are not in an array format", {
                     generatedTestCases
-                )
+                })
                 return NextResponse.json(
                     { error: "Invalid test cases format received from OpenAI" },
                     { status: 500 }
@@ -184,40 +242,52 @@ export async function GET() {
             }
 
             // Prepare data for bulk creation of test cases
-            const testCaseData = generatedTestCases.map((tc, index) => {
-                if (!tc.input || !tc.expectedOutput) {
-                    console.warn(
-                        `Test case at index ${index} is missing input or expectedOutput`
-                    )
-                }
-                return {
-                    id: undefined, // Prisma will auto-generate
-                    challengeId: challenge?.id,
-                    input: tc.input || "",
-                    expectedOutput: tc.expectedOutput || ""
-                }
-            })
+            const testCaseData = generatedTestCases
+                .map((tc, index) => {
+                    if (!tc.input || !tc.expectedOutput) {
+                        logger.warn(
+                            `Test case at index ${index} is missing input or expectedOutput`,
+                            { testCase: tc }
+                        )
+                        return null // Skip invalid test cases
+                    }
+                    return {
+                        challengeId: challenge?.id,
+                        input: tc.input || "",
+                        expectedOutput: tc.expectedOutput || ""
+                    }
+                })
+                .filter((tc) => tc !== null) // Filter out null values
 
-            // Filter out any invalid test cases
+            // Check for valid test cases
             const validTestCases = testCaseData.filter(
                 (tc) => tc.input && tc.expectedOutput
             )
 
             if (validTestCases.length === 0) {
-                console.error("No valid test cases generated")
+                logger.error("No valid test cases generated", { testCaseData })
                 return NextResponse.json(
                     { error: "No valid test cases generated" },
                     { status: 500 }
                 )
             }
 
+            console.log({ validTestCases })
+
             // Bulk create test cases
+            logger.info("Creating test cases for the challenge", {
+                count: validTestCases.length
+            })
             await prisma.testCase.createMany({
                 data: validTestCases.map((tc) => ({
-                    challengeId: tc.challengeId!,
+                    challengeId: challenge?.id || "",
                     input: tc.input,
                     expectedOutput: tc.expectedOutput
                 }))
+            })
+
+            logger.info("Created test cases for the challenge", {
+                count: validTestCases.length
             })
 
             // Optionally, retrieve the newly created test cases
@@ -225,7 +295,7 @@ export async function GET() {
                 where: { challengeId: challenge.id }
             })
 
-            // You can include test cases in the response if needed
+            // Update challenge with test cases
             challenge = {
                 ...challenge,
                 testCases: createdTestCases
@@ -258,7 +328,7 @@ export async function GET() {
             }))
         })
     } catch (error) {
-        console.error("Error generating daily challenge:", error)
+        logger.error("Error generating daily challenge:", { error })
         return NextResponse.json(
             { error: "Internal Server Error" },
             { status: 500 }

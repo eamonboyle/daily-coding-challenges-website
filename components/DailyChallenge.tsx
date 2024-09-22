@@ -99,12 +99,12 @@ export default function DailyChallenge() {
             }
         } catch (error) {
             console.error("Error submitting challenge:", error)
-            setResult({ 
-                status: "Error", 
-                executionTime: 0, 
-                memory: 0, 
-                score: 0, 
-                errorOutput: "Failed to submit challenge" 
+            setResult({
+                status: "Error",
+                executionTime: 0,
+                memory: 0,
+                score: 0,
+                errorOutput: "Failed to submit challenge"
             })
         } finally {
             setSubmitting(false)
@@ -247,7 +247,7 @@ export default function DailyChallenge() {
                                     </pre>
                                 </div>
                             )}
-                            {result.errorOutput && (
+                            {/* {result.errorOutput && (
                                 <div className="mb-4">
                                     <h4 className="font-semibold mb-2 text-gray-700 dark:text-gray-300">
                                         Error:
@@ -256,7 +256,7 @@ export default function DailyChallenge() {
                                         {result.errorOutput}
                                     </pre>
                                 </div>
-                            )}
+                            )} */}
                         </motion.div>
                     ) : (
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md h-full flex items-center justify-center">

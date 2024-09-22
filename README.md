@@ -7,10 +7,11 @@ This is a [Next.js](https://nextjs.org) project designed to help developers impr
 We have introduced a new project called **Code Execution Server**. This server allows users to run their code submissions in a secure environment, providing instant feedback on their solutions.
 
 ### Tech Stack
-- **Node.js**: For server-side execution.
-- **Docker**: To create isolated environments for different programming languages.
-- **Express**: To handle API requests.
-- **MongoDB**: For storing user submissions and profiles.
+
+-   **Node.js**: For server-side execution.
+-   **Docker**: To create isolated environments for different programming languages.
+-   **Express**: To handle API requests.
+-   **MongoDB**: For storing user submissions and profiles.
 
 ## Getting Started
 
@@ -34,10 +35,10 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Features
 
-- Daily coding challenges to enhance your programming skills.
-- User profiles to track progress and submissions.
-- Community feedback on coding solutions.
-- Support for multiple programming languages.
+-   Daily coding challenges to enhance your programming skills.
+-   User profiles to track progress and submissions.
+-   Community feedback on coding solutions.
+-   Support for multiple programming languages.
 
 ## Learn More
 
