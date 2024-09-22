@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import MonacoEditor from "@/components/MonacoEditor"
 import { motion } from "framer-motion"
@@ -24,24 +24,28 @@ interface SubmissionResult {
     errorOutput?: string
 }
 
+interface PastSubmission {
+    code: string
+    score: number
+}
+
 export default function DailyChallenge() {
     const [challenge, setChallenge] = useState<Challenge | null>(null)
     const [code, setCode] = useState("")
     const [result, setResult] = useState<SubmissionResult | null>(null)
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
+    const [pastSubmission, setPastSubmission] = useState<PastSubmission | null>(
+        null
+    )
 
-    useEffect(() => {
-        fetchChallenge()
-    }, [])
-
-    const fetchChallenge = async () => {
+    const fetchChallenge = useCallback(async () => {
         try {
             const response = await fetch("/api/challenge/daily")
             if (response.ok) {
                 const data = await response.json()
                 setChallenge(data)
-                setCode(getInitialCode(data.language))
+                await fetchPastSubmission(data.id)
             } else {
                 console.error("Failed to fetch challenge")
             }
@@ -50,7 +54,31 @@ export default function DailyChallenge() {
         } finally {
             setLoading(false)
         }
+    }, [])
+
+    const fetchPastSubmission = async (challengeId: string) => {
+        try {
+            const response = await fetch(
+                `/api/challenge/past-submission?challengeId=${challengeId}`
+            )
+            if (response.ok) {
+                const data = await response.json()
+                if (data && data.score === 100) {
+                    setPastSubmission(data)
+                    setCode(data.code)
+                } else {
+                    setCode(getInitialCode(challenge?.language || ""))
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching past submission:", error)
+            setCode(getInitialCode(challenge?.language || ""))
+        }
     }
+
+    useEffect(() => {
+        fetchChallenge()
+    }, [fetchChallenge])
 
     const getInitialCode = (language: string) => {
         switch (language.toLowerCase()) {
@@ -164,26 +192,34 @@ export default function DailyChallenge() {
                 <div className="w-full lg:w-2/3">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                         <MonacoEditor
-                            language={challenge.language}
+                            language={challenge?.language}
                             value={code}
                             onChange={(value) => setCode(value || "")}
+                            readOnly={!!pastSubmission}
                         />
                     </div>
                     <div className="mt-4">
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={submitting}
-                            className="w-full"
-                        >
-                            {submitting ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Submitting...
-                                </>
-                            ) : (
-                                "Submit Solution"
-                            )}
-                        </Button>
+                        {pastSubmission ? (
+                            <div className="text-center text-green-600 dark:text-green-400 font-semibold">
+                                You&apos;ve already solved this challenge
+                                successfully!
+                            </div>
+                        ) : (
+                            <Button
+                                onClick={handleSubmit}
+                                disabled={submitting}
+                                className="w-full"
+                            >
+                                {submitting ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    "Submit Solution"
+                                )}
+                            </Button>
+                        )}
                     </div>
                 </div>
 

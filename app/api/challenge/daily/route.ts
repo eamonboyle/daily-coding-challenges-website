@@ -47,6 +47,7 @@ async function getValidJsonResponse(prompt: string): Promise<any> {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
+            // @ts-expect-error - The type of the messages array is not correctly inferred by TypeScript.
             messages: [systemMessage, { role: "user", content: prompt }],
             temperature: 0.7
         })
