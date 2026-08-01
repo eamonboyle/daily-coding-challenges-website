@@ -8,6 +8,12 @@ import { getLanguage, wrapSolutionCode } from "@/lib/languages/registry"
 const CODE_EXECUTION_URL =
     process.env.CODE_EXECUTION_URL || "http://localhost:5000"
 
+interface ExecutionResult {
+    stdout: string
+    stderr: string
+    error?: string
+}
+
 export async function POST(request: Request) {
     const startTime = Date.now()
     try {
@@ -87,20 +93,13 @@ export async function POST(request: Request) {
                 )
             }
 
-            return response.json()
+            return (await response.json()) as ExecutionResult
         }
 
-        // Initialize variables for scoring and results
-        let totalScore = 0
-        const maxScore = testCases.length * 100
         let passedTests = 0
-        const outputs: string[] = []
-        const errors: string[] = []
-        const results: {
-            stdout: string
-            stderr: string
-            error?: string
-        }[] = []
+        const results: Array<
+            ExecutionResult & { testCaseId: string; passed: boolean }
+        > = []
 
         // Process each test case
         for (const testCase of testCases) {
@@ -130,41 +129,56 @@ export async function POST(request: Request) {
                 }
             }
 
-            results.push(result)
-            outputs.push(result.stdout)
-            errors.push(result.stderr)
-
             const executionFailed = Boolean(result.stderr || result.error)
-
-            if (!executionFailed) {
-                if (outputsMatch(result.stdout, testCase.expectedOutput)) {
-                    totalScore += 100
-                    passedTests += 1
-                }
+            const passed =
+                !executionFailed &&
+                outputsMatch(result.stdout, testCase.expectedOutput)
+            if (passed) {
+                passedTests += 1
             }
+
+            results.push({ ...result, testCaseId: testCase.id, passed })
         }
 
-        // Calculate final score and determine overall status
-        const score = (totalScore / maxScore) * 100
-        const status =
-            passedTests === testCases.length ? "Accepted" : "Wrong Answer"
+        const totalTests = testCases.length
+        const score = Math.round((100 * passedTests) / totalTests)
+        const status = passedTests === totalTests ? "Accepted" : "Wrong Answer"
+        const output = results.map((result) => result.stdout).join("\n---\n")
+        const errorOutput = results
+            .map((result) => result.stderr || result.error || "")
+            .join("\n---\n")
 
-        // Save the submission with results
-        const submission = await prisma.submission.create({
-            data: {
-                userId: user.id,
-                challengeId,
-                code,
-                languageSlug: language.slug,
-                status,
-                score,
-                output: outputs.join("\n---\n"),
-                errorOutput: errors.join("\n---\n"),
-                executionTime: parseFloat(
-                    ((Date.now() - startTime) / 1000).toFixed(3)
-                ), // Calculate execution time in seconds as a float
-                memory: null
-            }
+        const submission = await prisma.$transaction(async (tx) => {
+            const createdSubmission = await tx.submission.create({
+                data: {
+                    userId: user.id,
+                    challengeId,
+                    code,
+                    languageSlug: language.slug,
+                    status,
+                    passedTests,
+                    totalTests,
+                    score,
+                    output,
+                    errorOutput,
+                    executionTime: parseFloat(
+                        ((Date.now() - startTime) / 1000).toFixed(3)
+                    ),
+                    memory: null
+                }
+            })
+
+            await tx.testResult.createMany({
+                data: results.map((result) => ({
+                    submissionId: createdSubmission.id,
+                    testCaseId: result.testCaseId,
+                    stdout: result.stdout || null,
+                    stderr: result.stderr || result.error || null,
+                    passed: result.passed
+                }))
+            })
+
+            return createdSubmission
         })
 
         // Return the submission results
@@ -172,6 +186,8 @@ export async function POST(request: Request) {
             submissionId: submission.id,
             status: submission.status,
             score: submission.score,
+            passedTests: submission.passedTests,
+            totalTests: submission.totalTests,
             output: submission.output,
             errorOutput: submission.errorOutput,
             executionTime: submission.executionTime // Include execution time in response

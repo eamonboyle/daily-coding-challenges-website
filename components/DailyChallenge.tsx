@@ -22,6 +22,8 @@ interface SubmissionResult {
     executionTime: number
     memory: number
     score: number
+    passedTests: number
+    totalTests: number
     output?: string
     errorOutput?: string
 }
@@ -120,6 +122,8 @@ export default function DailyChallenge() {
                 executionTime: 0,
                 memory: 0,
                 score: 0,
+                passedTests: 0,
+                totalTests: 0,
                 errorOutput: "Failed to submit challenge"
             })
         } finally {
@@ -244,6 +248,14 @@ export default function DailyChallenge() {
                                     </p>
                                     <p className="text-lg font-semibold text-gray-800 dark:text-white">
                                         {result.score}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                        Tests Passed
+                                    </p>
+                                    <p className="text-lg font-semibold text-gray-800 dark:text-white">
+                                        {result.passedTests}/{result.totalTests}
                                     </p>
                                 </div>
                                 <div>

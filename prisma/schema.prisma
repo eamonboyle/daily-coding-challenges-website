@@ -48,6 +48,7 @@ model TestCase {
   input          String
   expectedOutput String
   DailyChallenge DailyChallenge @relation(fields: [challengeId], references: [id])
+  testResults    TestResult[]
 }
 
 model Submission {
@@ -62,10 +63,26 @@ model Submission {
   executionTime Float?
   memory        Float?
 
-  score     Int
-  attempts  Int            @default(1)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  user      User           @relation(fields: [userId], references: [id])
-  challenge DailyChallenge @relation(fields: [challengeId], references: [id])
+  passedTests Int            @default(0)
+  totalTests  Int            @default(0)
+  score       Int            @default(0)
+  attempts    Int            @default(1)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id])
+  challenge   DailyChallenge @relation(fields: [challengeId], references: [id])
+  testResults TestResult[]
+}
+
+model TestResult {
+  id           String     @id @default(cuid())
+  submissionId String
+  testCaseId   String
+  stdout       String?
+  stderr       String?
+  passed       Boolean
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  testCase     TestCase   @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, testCaseId])
 }

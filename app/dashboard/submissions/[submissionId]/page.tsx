@@ -78,6 +78,12 @@ export default async function SubmissionPage({
                             <h3 className="font-semibold">Score</h3>
                             <p>{submission.score}</p>
                         </div>
+                        <div>
+                            <h3 className="font-semibold">Tests Passed</h3>
+                            <p>
+                                {submission.passedTests}/{submission.totalTests}
+                            </p>
+                        </div>
                     </div>
                     <div className="mt-6">
                         <h3 className="font-semibold">Code</h3>
