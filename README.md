@@ -5,14 +5,14 @@ Next.js app that serves a daily coding challenge per user, grades submissions ag
 ## Architecture
 
 - **Next.js** (`app/`) serves the UI and challenge/submit APIs. Challenges are generated with OpenAI (or a fixture in mock mode) and stored in Postgres via Prisma.
-- **Code execution server** (`code-execution-server/`) accepts `{ language, code }` and returns `{ stdout, stderr }`.
+- **Code execution server** (`code-execution-server/`) accepts a single `{ language, code, input? }` request or a batch `{ language, cases }` request and returns execution output.
   - `EXECUTION_MODE=docker` builds cached language images and runs each submission in a container.
   - `EXECUTION_MODE=mock` runs JavaScript/TypeScript in-process (via `vm` + TypeScript transpile) and Python via `python3`. Use this when Docker is unavailable.
 
 Submission flow:
 
-1. `POST /api/challenge/submit` wraps the user function with each test input.
-2. Next.js calls `CODE_EXECUTION_URL/execute`.
+1. `POST /api/challenge/submit` wraps the required `solution` function with each test input.
+2. Next.js sends all wrapped cases to `CODE_EXECUTION_URL/execute` in one batch, with single-request fallback for an older executor.
 3. Stdout is compared to the expected output (JSON-aware).
 
 GPT may return array/number test values. Those are coerced to strings at the API boundary (`lib/testCases.ts`) before Prisma storage.
@@ -37,7 +37,7 @@ npm run dev
 
 Open http://localhost:3000/challenges. Mock mode seeds a user automatically and serves the fixture "Sum Array Elements" challenge.
 
-Set both `APP_MODE=mock` and `NEXT_PUBLIC_APP_MODE=mock` (see `.env.example`). The public flag is required so client components skip Clerk hooks.
+Set `APP_MODE=mock`, `NEXT_PUBLIC_APP_MODE=mock`, and `EXECUTION_MODE=mock` (see `.env.example`). The public flag makes client components skip Clerk hooks; the executor flag selects its no-Docker backend. In this mode Next.js defaults to `http://localhost:5000` when `CODE_EXECUTION_URL` is omitted. Compose still sets the service URL explicitly.
 
 Verify the executor alone:
 

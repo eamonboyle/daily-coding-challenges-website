@@ -60,9 +60,6 @@ services:
             # Required when EXECUTION_MODE=docker so the executor can spawn language containers
             - /var/run/docker.sock:/var/run/docker.sock
         restart: unless-stopped
-        depends_on:
-            postgres:
-                condition: service_healthy
 
 networks:
     default:

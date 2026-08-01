@@ -5,6 +5,19 @@ export interface CodeExecutionRequest {
     input?: string
 }
 
+export interface BatchExecutionCase {
+    id?: string
+    code?: string
+    input?: string
+}
+
+export interface BatchCodeExecutionRequest {
+    dependencies?: string[]
+    language: string
+    code?: string
+    cases: BatchExecutionCase[]
+}
+
 export interface CodeExecutionResponse {
     stdout: string
     stderr: string

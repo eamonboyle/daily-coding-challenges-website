@@ -20,6 +20,7 @@ interface CachedImage {
 
 const MAX_CACHE_SIZE = 50 // Maximum number of cached images
 const CACHE_EVICTION_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours
+const EXECUTION_TIMEOUT_MS = 10_000
 
 const CACHE_METADATA_PATH = path.join(__dirname, "../cacheMetadata.json")
 
@@ -228,7 +229,6 @@ export class DockerManager {
         logger.info(`Creating Docker container from image: ${imageName}`)
 
         const codeFileName = path.basename(codeFilePath)
-        const containerCodePath = `/usr/src/app/${codeFileName}`
         const container = await docker.createContainer({
             Image: imageName,
             Tty: false,
@@ -237,18 +237,23 @@ export class DockerManager {
             WorkingDir: "/usr/src/app",
             Env: input ? [`INPUT=${input}`] : [],
             HostConfig: {
-                AutoRemove: true,
                 NetworkMode: "none",
                 Memory: 128 * 1024 * 1024,
                 CpuShares: 256,
-                Binds: [`${codeFilePath}:${containerCodePath}:ro`]
+                PidsLimit: 64
             },
             Cmd: ["sh", "-c", runCommand]
         })
 
+        let timeout: NodeJS.Timeout | undefined
         try {
-            logger.info("Starting Docker container")
-            await container.start()
+            const archive = tarStream.pack()
+            archive.entry(
+                { name: codeFileName, mode: 0o444 },
+                fs.readFileSync(codeFilePath)
+            )
+            archive.finalize()
+            await container.putArchive(archive, { path: "/usr/src/app" })
 
             const stream = await container.attach({
                 stream: true,
@@ -270,12 +275,37 @@ export class DockerManager {
 
             container.modem.demuxStream(stream, stdoutStream, stderrStream)
 
-            await container.wait()
+            logger.info("Starting Docker container")
+            await container.start()
+
+            const timedOut = new Promise<never>((_, reject) => {
+                timeout = setTimeout(() => {
+                    void container.stop({ t: 0 }).catch((error) => {
+                        logger.warn("Failed to stop timed-out container", {
+                            error
+                        })
+                    })
+                    reject(
+                        new Error(
+                            `Execution timed out after ${EXECUTION_TIMEOUT_MS}ms`
+                        )
+                    )
+                }, EXECUTION_TIMEOUT_MS)
+            })
+
+            await Promise.race([container.wait(), timedOut])
 
             return { stdout: stdout.trim(), stderr: stderr.trim() }
         } catch (error) {
             logger.error("Error during container execution:", error)
             throw error
+        } finally {
+            if (timeout) {
+                clearTimeout(timeout)
+            }
+            await container.remove({ force: true }).catch((error) => {
+                logger.warn("Failed to remove execution container", { error })
+            })
         }
     }
 

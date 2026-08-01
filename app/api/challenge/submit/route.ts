@@ -5,13 +5,80 @@ import { outputsMatch } from "@/lib/testCases"
 import logger from "@/lib/logger"
 import { getLanguage, wrapSolutionCode } from "@/lib/languages/registry"
 
+// Compose sets CODE_EXECUTION_URL explicitly; mock/local mode uses its local executor.
 const CODE_EXECUTION_URL =
-    process.env.CODE_EXECUTION_URL || "http://localhost:5000"
+    process.env.CODE_EXECUTION_URL ?? "http://localhost:5000"
 
 interface ExecutionResult {
     stdout: string
     stderr: string
     error?: string
+}
+
+interface ExecutionCase {
+    id: string
+    code: string
+    input: string
+}
+
+async function executeSingleCase(
+    language: string,
+    executionCase: ExecutionCase
+): Promise<ExecutionResult> {
+    const response = await fetch(`${CODE_EXECUTION_URL}/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            language,
+            code: executionCase.code,
+            input: executionCase.input
+        })
+    })
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(
+            (errorData as { error?: string }).error || "Failed to execute code"
+        )
+    }
+
+    return (await response.json()) as ExecutionResult
+}
+
+async function executeBatch(
+    language: string,
+    cases: ExecutionCase[]
+): Promise<ExecutionResult[] | null> {
+    try {
+        const response = await fetch(`${CODE_EXECUTION_URL}/execute`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ language, cases })
+        })
+        if (!response.ok) {
+            return null
+        }
+
+        const payload = (await response.json()) as {
+            results?: ExecutionResult[]
+        }
+        if (
+            !Array.isArray(payload.results) ||
+            payload.results.length !== cases.length
+        ) {
+            return null
+        }
+
+        return payload.results
+    } catch (error) {
+        logger.warn(
+            "Batch executor unavailable; falling back to single cases",
+            {
+                error
+            }
+        )
+        return null
+    }
 }
 
 export async function POST(request: Request) {
@@ -67,67 +134,43 @@ export async function POST(request: Request) {
             )
         }
 
-        // Function to submit code to your backend service using native fetch
-        const submitToExecutionService = async (
-            language: string,
-            code: string,
-            input: string
-        ) => {
-            const response = await fetch(`${CODE_EXECUTION_URL}/execute`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    language,
-                    code,
-                    input
-                })
-            })
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}))
-                throw new Error(
-                    (errorData as { error?: string }).error ||
-                        "Failed to execute code"
-                )
-            }
-
-            return (await response.json()) as ExecutionResult
-        }
-
         let passedTests = 0
         const results: Array<
             ExecutionResult & { testCaseId: string; passed: boolean }
         > = []
 
-        // Process each test case
-        for (const testCase of testCases) {
-            const wrappedCode = wrapSolutionCode(
-                language.slug,
-                code,
-                testCase.input
-            )
-            let result
+        const executionCases = testCases.map((testCase) => ({
+            id: testCase.id,
+            code: wrapSolutionCode(language.slug, code, testCase.input),
+            input: testCase.input
+        }))
+        let executionResults = await executeBatch(language.slug, executionCases)
 
-            try {
-                result = await submitToExecutionService(
-                    language.slug,
-                    wrappedCode,
-                    testCase.input // Pass the test case input here
-                )
-
-                logger.info("Executed test case", {
-                    testCaseId: testCase.id,
-                    hasStderr: Boolean(result.stderr)
-                })
-            } catch (error) {
-                result = {
-                    stdout: "",
-                    stderr:
+        if (!executionResults) {
+            executionResults = []
+            for (const executionCase of executionCases) {
+                try {
+                    executionResults.push(
+                        await executeSingleCase(language.slug, executionCase)
+                    )
+                } catch (error) {
+                    const message =
                         error instanceof Error ? error.message : String(error)
+                    executionResults.push({
+                        stdout: "",
+                        stderr: message,
+                        error: message
+                    })
                 }
             }
+        }
+
+        for (const [index, testCase] of testCases.entries()) {
+            const result = executionResults[index]
+            logger.info("Executed test case", {
+                testCaseId: testCase.id,
+                hasStderr: Boolean(result.stderr)
+            })
 
             const executionFailed = Boolean(result.stderr || result.error)
             const passed =
