@@ -47,7 +47,6 @@ export const languageConfigs: LanguageConfig[] = [
         fileExtension: "ts",
         formatValue: (value: any): string => {
             const type = typeof value
-            console.log(type)
             switch (type) {
                 case "string":
                     return `"${escapeString(value)}"`

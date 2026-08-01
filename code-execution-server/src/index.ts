@@ -4,6 +4,7 @@ import cors from "cors"
 import { CodeExecutionRequest } from "./types"
 import { executeCode, resolveExecutionMode } from "./services/executionBackend"
 import { DockerManager } from "./services/dockerManager"
+import logger from "./utils/logger"
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -39,7 +40,7 @@ app.post("/execute", async (req: Request, res: Response) => {
         const response = await executeCode(request)
         res.json(response)
     } catch (error) {
-        console.log({ error })
+        logger.error("Execute failed", { error })
         res.status(500).json({
             stdout: "",
             stderr: "",
@@ -49,7 +50,7 @@ app.post("/execute", async (req: Request, res: Response) => {
 })
 
 app.listen(PORT, () => {
-    console.log(
+    logger.info(
         `Code execution server on http://localhost:${PORT} (mode=${resolveExecutionMode()})`
     )
 })
