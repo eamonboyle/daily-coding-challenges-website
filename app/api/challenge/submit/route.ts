@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthUserId } from "@/lib/auth"
+import { isAuthError, requireUser } from "@/lib/auth"
 import { outputsMatch } from "@/lib/testCases"
 import logger from "@/lib/logger"
 import { getLanguage, wrapSolutionCode } from "@/lib/languages/registry"
@@ -11,25 +11,20 @@ const CODE_EXECUTION_URL =
 export async function POST(request: Request) {
     const startTime = Date.now()
     try {
-        const userId = await getAuthUserId()
-        if (!userId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-        }
-
-        // Fetch user from database
-        const user = await prisma.user.findUnique({
-            where: { clerkId: userId }
-        })
-
-        if (!user) {
-            return NextResponse.json(
-                { error: "User not found" },
-                { status: 404 }
-            )
-        }
+        const user = await requireUser()
 
         // Extract challenge ID and code from request body
         const { challengeId, code } = await request.json()
+        if (
+            typeof challengeId !== "string" ||
+            typeof code !== "string" ||
+            !code.trim()
+        ) {
+            return NextResponse.json(
+                { error: "challengeId and code are required" },
+                { status: 400 }
+            )
+        }
 
         // Fetch challenge details including test cases
         const challenge = await prisma.dailyChallenge.findUnique({
@@ -42,6 +37,10 @@ export async function POST(request: Request) {
                 { error: "Challenge not found" },
                 { status: 404 }
             )
+        }
+
+        if (challenge.userId !== user.id) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
 
         // Get language details
@@ -178,6 +177,12 @@ export async function POST(request: Request) {
             executionTime: submission.executionTime // Include execution time in response
         })
     } catch (error) {
+        if (isAuthError(error)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: error.status }
+            )
+        }
         logger.error("Error submitting challenge:", { error })
         return NextResponse.json(
             { error: "Internal Server Error" },

@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthUserId, isMockMode } from "@/lib/auth"
+import { isAuthError, isMockMode, requireUser } from "@/lib/auth"
 
 export async function DELETE(req: Request) {
     try {
-        const userId = await getAuthUserId()
-        if (!userId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-        }
-
-        const user = await prisma.user.findUnique({
-            where: { clerkId: userId }
-        })
+        const user = await requireUser()
 
         const allowed =
             isMockMode() ||
@@ -22,10 +15,7 @@ export async function DELETE(req: Request) {
         }
 
         const origin = req.headers.get("origin")
-        if (
-            !isMockMode() &&
-            origin !== process.env.NEXT_PUBLIC_APP_URL
-        ) {
+        if (!isMockMode() && origin !== process.env.NEXT_PUBLIC_APP_URL) {
             return NextResponse.json(
                 { error: "CSRF check failed" },
                 { status: 403 }
@@ -43,6 +33,12 @@ export async function DELETE(req: Request) {
 
         return NextResponse.json({ message: "All data cleared successfully" })
     } catch (error) {
+        if (isAuthError(error)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: error.status }
+            )
+        }
         console.error("Error clearing data:", error)
         return NextResponse.json(
             { error: "Internal Server Error" },

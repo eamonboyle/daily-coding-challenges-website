@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getAuthUserId, isMockMode } from "@/lib/auth"
+import {
+    isAuthError,
+    isMockMode,
+    requireAuthUserId,
+    requireUser
+} from "@/lib/auth"
 import { getLanguage } from "@/lib/languages/registry"
 
 export async function POST(request: Request) {
     try {
-        const userId = await getAuthUserId()
-        if (!userId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-        }
+        const userId = await requireAuthUserId()
 
         let email = "mock@example.com"
         if (!isMockMode()) {
@@ -34,9 +36,16 @@ export async function POST(request: Request) {
             )
         }
 
-        const user = await prisma.user.create({
-            data: {
+        await prisma.user.upsert({
+            where: { clerkId: userId },
+            create: {
                 clerkId: userId,
+                email,
+                username,
+                preferredLanguageSlug: language.slug,
+                emailAlerts
+            },
+            update: {
                 email,
                 username,
                 preferredLanguageSlug: language.slug,
@@ -44,8 +53,20 @@ export async function POST(request: Request) {
             }
         })
 
-        return NextResponse.json(user)
+        const user = await requireUser()
+        return NextResponse.json({
+            id: user.id,
+            username: user.username,
+            preferredLanguageSlug: user.preferredLanguageSlug,
+            emailAlerts: user.emailAlerts
+        })
     } catch (error) {
+        if (isAuthError(error)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: error.status }
+            )
+        }
         console.error("Error creating user:", error)
         return NextResponse.json(
             { error: "Internal Server Error" },

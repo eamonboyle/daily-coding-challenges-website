@@ -1,9 +1,13 @@
 import { prisma } from "./prisma"
 
-export async function getPastSuccessfulSubmission(challengeId: string) {
+export async function getPastSuccessfulSubmission(
+    challengeId: string,
+    userId: string
+) {
     const submission = await prisma.submission.findFirst({
         where: {
-            challengeId: challengeId,
+            challengeId,
+            userId,
             status: "Accepted"
         },
         orderBy: {

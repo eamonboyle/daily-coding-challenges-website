@@ -6,14 +6,15 @@ import MonacoEditor from "@/components/MonacoEditor"
 import { motion } from "framer-motion"
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
 import confetti from "canvas-confetti"
-import { getLanguage } from "@/lib/languages/registry"
+import { getLanguage, type LanguageSlug } from "@/lib/languages/registry"
 
 interface Challenge {
     id: string
     title: string
     description: string
     difficulty: string
-    languageSlug: string
+    languageSlug: LanguageSlug
+    testCases: Array<{ id: string; input: string }>
 }
 
 interface SubmissionResult {
@@ -75,7 +76,7 @@ export default function DailyChallenge() {
         fetchChallenge()
     }, [fetchChallenge])
 
-    const getInitialCode = (languageSlug: string) => {
+    const getInitialCode = (languageSlug: LanguageSlug) => {
         switch (languageSlug) {
             case "javascript":
                 return "function solution(input) {\n    // Write your solution here\n}\n"

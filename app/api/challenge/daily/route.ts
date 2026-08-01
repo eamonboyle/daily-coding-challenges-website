@@ -4,9 +4,8 @@ import { prisma } from "@/lib/prisma"
 import logger from "@/lib/logger"
 import { extractJsonFromCodeBlock } from "@/lib/sanitizeJsonString"
 import { normalizeTestCases } from "@/lib/testCases"
-import { getAuthUserId, isMockMode } from "@/lib/auth"
+import { isAuthError, isMockMode, requireUser } from "@/lib/auth"
 import { FIXTURE_CHALLENGE } from "@/lib/mocks/fixtureChallenge"
-import { ensureMockUser } from "@/lib/mocks/ensureMockUser"
 import { getLanguage } from "@/lib/languages/registry"
 
 const openai = process.env.OPENAI_API_KEY
@@ -74,25 +73,7 @@ async function getValidJsonResponse(prompt: string): Promise<unknown> {
 
 export async function GET() {
     try {
-        const userId = await getAuthUserId()
-        if (!userId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-        }
-
-        if (isMockMode()) {
-            await ensureMockUser()
-        }
-
-        const user = await prisma.user.findUnique({
-            where: { clerkId: userId }
-        })
-
-        if (!user) {
-            return NextResponse.json(
-                { error: "User not found" },
-                { status: 404 }
-            )
-        }
+        const user = await requireUser()
 
         const today = new Date()
         today.setHours(0, 0, 0, 0)
@@ -278,16 +259,19 @@ Respond with either a JSON array of test cases, or an object with a "testCases" 
             title: challenge.title,
             description: challenge.description,
             difficulty: challenge.difficulty,
-            solution: challenge.solution,
             languageSlug: challenge.languageSlug,
-            userId: challenge.userId,
             testCases: challenge.testCases.map((tc) => ({
                 id: tc.id,
-                input: tc.input,
-                expectedOutput: tc.expectedOutput
+                input: tc.input
             }))
         })
     } catch (error) {
+        if (isAuthError(error)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: error.status }
+            )
+        }
         logger.error("Error generating daily challenge:", { error })
         return NextResponse.json(
             { error: "Internal Server Error" },
