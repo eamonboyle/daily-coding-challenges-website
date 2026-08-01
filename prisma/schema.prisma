@@ -66,9 +66,8 @@ model Submission {
     memory        Float?
 
     score       Int
-    attempts    Int            @default(1)
-    judge0Token String? // Add this line
-    createdAt   DateTime       @default(now())
+    attempts  Int      @default(1)
+    createdAt DateTime @default(now())
     updatedAt   DateTime       @updatedAt
     user        User           @relation(fields: [userId], references: [id])
     challenge   DailyChallenge @relation(fields: [challengeId], references: [id])
