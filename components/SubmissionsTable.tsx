@@ -110,7 +110,7 @@ export default function SubmissionsTable({ userId }: SubmissionsTableProps) {
                                     {submission.challenge.title}
                                 </TableCell>
                                 <TableCell className="py-3 px-4">
-                                    {submission.language}
+                                    {submission.languageSlug}
                                 </TableCell>
                                 <TableCell className="py-3 px-4">
                                     <span

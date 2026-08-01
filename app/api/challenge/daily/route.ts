@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
-import { getLanguageById } from "@/lib/languages"
 import { prisma } from "@/lib/prisma"
 import logger from "@/lib/logger"
 import { extractJsonFromCodeBlock } from "@/lib/sanitizeJsonString"
@@ -8,6 +7,7 @@ import { normalizeTestCases } from "@/lib/testCases"
 import { getAuthUserId, isMockMode } from "@/lib/auth"
 import { FIXTURE_CHALLENGE } from "@/lib/mocks/fixtureChallenge"
 import { ensureMockUser } from "@/lib/mocks/ensureMockUser"
+import { getLanguage } from "@/lib/languages/registry"
 
 const openai = process.env.OPENAI_API_KEY
     ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -108,7 +108,7 @@ export async function GET() {
         })
 
         if (!challenge) {
-            const language = getLanguageById(user.preferredLanguageId)
+            const language = getLanguage(user.preferredLanguageSlug)
 
             logger.info("Selected language", { language })
 
@@ -132,7 +132,7 @@ export async function GET() {
                 }
                 rawTestCases = FIXTURE_CHALLENGE.testCases
             } else {
-                const prompt = `Generate a coding challenge with the following details in ${language.name}:
+                const prompt = `Generate a coding challenge with the following details in ${language.displayName}:
 - Title
 - Description
 - Difficulty level (easy, medium, hard)
@@ -170,7 +170,7 @@ Input and expectedOutput may be strings, numbers, booleans, or arrays (e.g. [1, 
 
 Challenge Title: ${generatedChallenge.title}
 Challenge Description: ${generatedChallenge.description}
-Language: ${language.name}
+Language: ${language.displayName}
 
 Respond with either a JSON array of test cases, or an object with a "testCases" array. Enclose the JSON in a \`\`\`json code block.
 `
@@ -211,8 +211,7 @@ Respond with either a JSON array of test cases, or an object with a "testCases" 
                     description,
                     difficulty,
                     solution,
-                    languageId: language.id,
-                    language: language.name,
+                    languageSlug: language.slug,
                     userId: user.id
                 },
                 include: { testCases: true }
@@ -280,8 +279,7 @@ Respond with either a JSON array of test cases, or an object with a "testCases" 
             description: challenge.description,
             difficulty: challenge.difficulty,
             solution: challenge.solution,
-            languageId: challenge.languageId,
-            language: challenge.language,
+            languageSlug: challenge.languageSlug,
             userId: challenge.userId,
             testCases: challenge.testCases.map((tc) => ({
                 id: tc.id,

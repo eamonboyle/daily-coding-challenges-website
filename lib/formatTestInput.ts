@@ -1,27 +1,14 @@
-import { getLanguageConfig } from "@/config/languageConfig"
-import { LanguageConfig } from "@/types/language"
-import { escapeString } from "./escapeString"
+import { getLanguage, type LanguageSlug } from "@/lib/languages/registry"
 import { parseStoredValue } from "./testCases"
-import logger from "./logger"
 
-const formatTestInput = (
-    input: string,
-    languageId: number,
-    languageName: string
-): string => {
-    const config: LanguageConfig | undefined = getLanguageConfig(
-        languageName.toLowerCase()
-    )
-    if (!config) {
-        logger.warn("Unsupported language for formatTestInput", {
-            languageId,
-            languageName
-        })
-        return `"${escapeString(input)}"`
+const formatTestInput = (input: string, languageSlug: LanguageSlug): string => {
+    const language = getLanguage(languageSlug)
+    if (!language) {
+        throw new Error(`Unsupported language: ${languageSlug}`)
     }
 
     const parsedInput = parseStoredValue(input)
-    return config.formatValue(parsedInput)
+    return language.formatValue(parsedInput)
 }
 
 export default formatTestInput

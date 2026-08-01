@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { judge0Languages } from "@/config/judge0-languages"
+import { languages } from "@/lib/languages/registry"
 import { isClientMockMode, mockAuthSession } from "@/hooks/use-auth-session"
 
 export default function Onboarding() {
@@ -14,14 +14,15 @@ export default function Onboarding() {
 
 function ClerkOnboarding() {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const clerk = require("@/components/ClerkAuthControls") as typeof import("@/components/ClerkAuthControls")
+    const clerk =
+        require("@/components/ClerkAuthControls") as typeof import("@/components/ClerkAuthControls")
     const { userId } = clerk.useClerkAuthSession()
     return <OnboardingForm userId={userId} />
 }
 
 function OnboardingForm({ userId }: { userId: string | null }) {
     const [username, setUsername] = useState("")
-    const [preferredLanguageId, setPreferredLanguageId] = useState("")
+    const [preferredLanguageSlug, setPreferredLanguageSlug] = useState("")
     const [emailAlerts, setEmailAlerts] = useState(true)
     const [isLoading, setIsLoading] = useState(true)
     const router = useRouter()
@@ -31,7 +32,11 @@ function OnboardingForm({ userId }: { userId: string | null }) {
         const response = await fetch("/api/user/create", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, preferredLanguageId, emailAlerts })
+            body: JSON.stringify({
+                username,
+                preferredLanguageSlug,
+                emailAlerts
+            })
         })
 
         if (response.ok) {
@@ -97,15 +102,17 @@ function OnboardingForm({ userId }: { userId: string | null }) {
                     <select
                         id="language"
                         title="Preferred Language"
-                        value={preferredLanguageId}
-                        onChange={(e) => setPreferredLanguageId(e.target.value)}
+                        value={preferredLanguageSlug}
+                        onChange={(e) =>
+                            setPreferredLanguageSlug(e.target.value)
+                        }
                         required
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     >
                         <option value="">Select preferred language</option>
-                        {judge0Languages.map((language) => (
-                            <option key={language.id} value={language.id}>
-                                {language.name}
+                        {languages.map((language) => (
+                            <option key={language.slug} value={language.slug}>
+                                {language.displayName}
                             </option>
                         ))}
                     </select>

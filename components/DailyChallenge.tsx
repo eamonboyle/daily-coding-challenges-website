@@ -6,13 +6,14 @@ import MonacoEditor from "@/components/MonacoEditor"
 import { motion } from "framer-motion"
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
 import confetti from "canvas-confetti"
+import { getLanguage } from "@/lib/languages/registry"
 
 interface Challenge {
     id: string
     title: string
     description: string
     difficulty: string
-    language: string
+    languageSlug: string
 }
 
 interface SubmissionResult {
@@ -56,7 +57,7 @@ export default function DailyChallenge() {
                         setPastSubmission(pastData)
                         setCode(pastData.code)
                     } else {
-                        setCode(getInitialCode(data.language || ""))
+                        setCode(getInitialCode(data.languageSlug))
                     }
                 }
             } else {
@@ -64,34 +65,26 @@ export default function DailyChallenge() {
             }
         } catch (error) {
             console.error("Error fetching challenge:", error)
-            setCode(getInitialCode(challenge?.language || ""))
+            setCode("")
         } finally {
             setLoading(false)
         }
-    }, [challenge?.language])
+    }, [])
 
     useEffect(() => {
         fetchChallenge()
     }, [fetchChallenge])
 
-    const getInitialCode = (language: string) => {
-        switch (language.toLowerCase()) {
+    const getInitialCode = (languageSlug: string) => {
+        switch (languageSlug) {
             case "javascript":
-                return "// Write your JavaScript solution here\n\n"
+                return "function solution(input) {\n    // Write your solution here\n}\n"
             case "typescript":
-                return "// Write your TypeScript solution here\n\n"
+                return "function solution(input: unknown): unknown {\n    // Write your solution here\n}\n"
             case "python":
-                return "# Write your Python solution here\n\n"
-            case "java":
-                return "// Write your Java solution here\n\n"
-            case "csharp":
-                return "// Write your C# solution here\n\n"
-            case "cpp":
-                return "# Write your C++ solution here\n\n"
-            case "c":
-                return "# Write your C solution here\n\n"
+                return "def solution(input):\n    # Write your solution here\n    pass\n"
             default:
-                return "// Write your solution here\n\n"
+                return ""
         }
     }
 
@@ -174,7 +167,9 @@ export default function DailyChallenge() {
                         {challenge.difficulty}
                     </span>
                     <span className="text-sm text-gray-600 dark:text-gray-300">
-                        Language: {challenge.language}
+                        Language:{" "}
+                        {getLanguage(challenge.languageSlug)?.displayName ??
+                            challenge.languageSlug}
                     </span>
                 </div>
                 <p className="text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
@@ -186,7 +181,7 @@ export default function DailyChallenge() {
                 <div className="w-full lg:w-2/3">
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                         <MonacoEditor
-                            language={challenge?.language}
+                            language={challenge.languageSlug}
                             value={code}
                             onChange={(value) => setCode(value || "")}
                             readOnly={!!pastSubmission}

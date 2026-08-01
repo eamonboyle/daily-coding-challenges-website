@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server"
-import { getLanguageById } from "@/lib/languages"
 import { prisma } from "@/lib/prisma"
-import { extractFunctionName, languageTemplates } from "@/lib/templates"
-import { TestCase } from "@prisma/client"
-import formatTestInput from "@/lib/formatTestInput"
 import { getAuthUserId } from "@/lib/auth"
 import { outputsMatch } from "@/lib/testCases"
 import logger from "@/lib/logger"
+import { getLanguage, wrapSolutionCode } from "@/lib/languages/registry"
 
 const CODE_EXECUTION_URL =
     process.env.CODE_EXECUTION_URL || "http://localhost:5000"
@@ -48,7 +45,7 @@ export async function POST(request: Request) {
         }
 
         // Get language details
-        const language = getLanguageById(challenge.languageId)
+        const language = getLanguage(challenge.languageSlug)
         if (!language) {
             return NextResponse.json(
                 { error: "Unsupported language" },
@@ -63,40 +60,6 @@ export async function POST(request: Request) {
                 { error: "No test cases defined for this challenge" },
                 { status: 400 }
             )
-        }
-
-        const template = languageTemplates[challenge.languageId]
-        if (!template) {
-            return NextResponse.json(
-                { error: "Unsupported language" },
-                { status: 400 }
-            )
-        }
-
-        const functionName = extractFunctionName(code, challenge.languageId)
-        if (!functionName) {
-            return NextResponse.json(
-                {
-                    error: "Unable to determine function name from the submitted code."
-                },
-                { status: 400 }
-            )
-        }
-
-        // Function to wrap user's code with test case
-        const wrapCode = (userCode: string, testCase: TestCase): string => {
-            const wrappedCode = template.wrapper
-                .replace("{{USER_CODE}}", userCode)
-                .replace("{{FUNCTION_NAME}}", functionName)
-                .replace(
-                    "{{TEST_INPUT}}",
-                    formatTestInput(
-                        testCase.input,
-                        challenge.languageId,
-                        language.name
-                    )
-                )
-            return wrappedCode
         }
 
         // Function to submit code to your backend service using native fetch
@@ -142,12 +105,16 @@ export async function POST(request: Request) {
 
         // Process each test case
         for (const testCase of testCases) {
-            const wrappedCode = wrapCode(code, testCase)
+            const wrappedCode = wrapSolutionCode(
+                language.slug,
+                code,
+                testCase.input
+            )
             let result
 
             try {
                 result = await submitToExecutionService(
-                    language.name.toLowerCase(),
+                    language.slug,
                     wrappedCode,
                     testCase.input // Pass the test case input here
                 )
@@ -189,8 +156,7 @@ export async function POST(request: Request) {
                 userId: user.id,
                 challengeId,
                 code,
-                language: language.name,
-                languageId: challenge.languageId,
+                languageSlug: language.slug,
                 status,
                 score,
                 output: outputs.join("\n---\n"),

@@ -68,7 +68,7 @@ export default async function SubmissionPage({
                         </div>
                         <div>
                             <h3 className="font-semibold">Language</h3>
-                            <p>{submission.language}</p>
+                            <p>{submission.languageSlug}</p>
                         </div>
                         <div>
                             <h3 className="font-semibold">Status</h3>
@@ -82,7 +82,7 @@ export default async function SubmissionPage({
                     <div className="mt-6">
                         <h3 className="font-semibold">Code</h3>
                         <MonacoEditor
-                            language={submission.language}
+                            language={submission.languageSlug}
                             value={submission.code}
                             readOnly={true}
                         />

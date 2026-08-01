@@ -14,8 +14,7 @@ export async function ensureMockUser() {
             clerkId,
             email: "mock@example.com",
             username: "mockuser",
-            preferredLanguage: "TypeScript",
-            preferredLanguageId: 101
+            preferredLanguageSlug: "typescript"
         }
     })
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { getLanguageById } from "@/lib/languages"
 import { prisma } from "@/lib/prisma"
 import { getAuthUserId, isMockMode } from "@/lib/auth"
+import { getLanguage } from "@/lib/languages/registry"
 
 export async function POST(request: Request) {
     try {
@@ -19,10 +19,13 @@ export async function POST(request: Request) {
             email = clerkUser?.primaryEmailAddress?.emailAddress || email
         }
 
-        const { username, preferredLanguageId, emailAlerts } =
+        const { username, preferredLanguageSlug, emailAlerts } =
             await request.json()
 
-        const language = getLanguageById(preferredLanguageId)
+        const language =
+            typeof preferredLanguageSlug === "string"
+                ? getLanguage(preferredLanguageSlug)
+                : undefined
 
         if (!language) {
             return NextResponse.json(
@@ -36,8 +39,7 @@ export async function POST(request: Request) {
                 clerkId: userId,
                 email,
                 username,
-                preferredLanguageId: language.id,
-                preferredLanguage: language.name,
+                preferredLanguageSlug: language.slug,
                 emailAlerts
             }
         })
