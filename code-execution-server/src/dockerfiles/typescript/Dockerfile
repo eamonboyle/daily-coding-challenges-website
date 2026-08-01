@@ -1,17 +1,7 @@
-# Base Dockerfile for TypeScript
-FROM node:latest
-
-# Set working directory
+# Base image for TypeScript submissions
+FROM node:18-alpine
 WORKDIR /usr/src/app
-
-# Install TypeScript globally
-RUN npm install -g typescript
-
-# Copy package.json and package-lock.json if available
+RUN npm install -g typescript ts-node
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install
-
-# Default command (can be overridden)
 CMD ["node"]

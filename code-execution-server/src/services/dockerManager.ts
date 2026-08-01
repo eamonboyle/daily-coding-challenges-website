@@ -5,6 +5,7 @@ import Docker from "dockerode"
 import fs from "fs"
 import path from "path"
 import tarStream from "tar-stream"
+import { PassThrough } from "stream"
 import logger from "../utils/logger"
 import { CodeExecutionRequest, LanguageConfig } from "../types"
 import { getLanguageConfig } from "../config/languageConfig"
@@ -226,7 +227,8 @@ export class DockerManager {
     ): Promise<{ stdout: string; stderr: string }> {
         logger.info(`Creating Docker container from image: ${imageName}`)
 
-        // Define a unique container name or use auto-generated
+        const codeFileName = path.basename(codeFilePath)
+        const containerCodePath = `/usr/src/app/${codeFileName}`
         const container = await docker.createContainer({
             Image: imageName,
             Tty: false,
@@ -236,53 +238,41 @@ export class DockerManager {
             Env: input ? [`INPUT=${input}`] : [],
             HostConfig: {
                 AutoRemove: true,
-                NetworkMode: "bridge",
-                Memory: 128 * 1024 * 1024, // 128MB
+                NetworkMode: "none",
+                Memory: 128 * 1024 * 1024,
                 CpuShares: 256,
-                Dns: ["8.8.8.8", "8.8.4.4"],
-                Binds: [`${codeFilePath}:/usr/src/app/Solution.ts`] // Adjust path and filename as needed
+                Binds: [`${codeFilePath}:${containerCodePath}:ro`]
             },
-            Cmd: ["sh", "-c", runCommand] // Override CMD if necessary
+            Cmd: ["sh", "-c", runCommand]
         })
 
         try {
             logger.info("Starting Docker container")
             await container.start()
 
-            logger.info("Attaching to container logs")
-            const logs = await container.logs({
+            const stream = await container.attach({
+                stream: true,
                 stdout: true,
-                stderr: true,
-                follow: true
+                stderr: true
             })
 
             let stdout = ""
             let stderr = ""
+            const stdoutStream = new PassThrough()
+            const stderrStream = new PassThrough()
 
-            const logsPromise = new Promise<void>((resolve, reject) => {
-                logs.on("data", (chunk: Buffer) => {
-                    const log = chunk
-                        .toString("utf-8")
-                        .replace(/[^\x20-\x7E]/g, "") // Filter non-printable characters
-                    logger.debug(`Container output: ${log}`) // Use debug level to reduce log verbosity
-                    stdout = log
-                })
-
-                logs.on("end", () => {
-                    logger.info("Logs stream ended")
-                    resolve()
-                })
-
-                logs.on("error", (err) => {
-                    logger.error("Error while reading container logs:", err)
-                    stderr = err.toString()
-                    reject(err)
-                })
+            stdoutStream.on("data", (chunk: Buffer) => {
+                stdout += chunk.toString("utf-8")
+            })
+            stderrStream.on("data", (chunk: Buffer) => {
+                stderr += chunk.toString("utf-8")
             })
 
-            await logsPromise
+            container.modem.demuxStream(stream, stdoutStream, stderrStream)
 
-            return { stdout, stderr }
+            await container.wait()
+
+            return { stdout: stdout.trim(), stderr: stderr.trim() }
         } catch (error) {
             logger.error("Error during container execution:", error)
             throw error
@@ -389,6 +379,3 @@ export class DockerManager {
         }
     }
 }
-
-// Initialize cache eviction when the module is loaded
-DockerManager.initializeCacheEviction()

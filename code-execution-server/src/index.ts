@@ -1,23 +1,32 @@
-// src/index.ts
-
 import express, { Request, Response } from "express"
 import bodyParser from "body-parser"
 import cors from "cors"
 import { CodeExecutionRequest } from "./types"
-import { CodeExecutionService } from "./services/codeExecutionService"
+import { executeCode, resolveExecutionMode } from "./services/executionBackend"
+import { DockerManager } from "./services/dockerManager"
 
 const app = express()
 const PORT = process.env.PORT || 5000
 
-// Middleware
 app.use(bodyParser.json())
 app.use(cors())
 
-app.get("/", (req: Request, res: Response) => {
-    res.send("Hello World")
+if (resolveExecutionMode() === "docker") {
+    DockerManager.initializeCacheEviction()
+}
+
+app.get("/", (_req: Request, res: Response) => {
+    res.json({
+        service: "code-execution-server",
+        mode: resolveExecutionMode(),
+        status: "ok"
+    })
 })
 
-// Routes
+app.get("/health", (_req: Request, res: Response) => {
+    res.json({ ok: true, mode: resolveExecutionMode() })
+})
+
 app.post("/execute", async (req: Request, res: Response) => {
     const request: CodeExecutionRequest = {
         language: req.body.language,
@@ -27,7 +36,7 @@ app.post("/execute", async (req: Request, res: Response) => {
     }
 
     try {
-        const response = await CodeExecutionService.executeCode(request)
+        const response = await executeCode(request)
         res.json(response)
     } catch (error) {
         console.log({ error })
@@ -39,7 +48,8 @@ app.post("/execute", async (req: Request, res: Response) => {
     }
 })
 
-// Start Server
 app.listen(PORT, () => {
-    console.log(`Server is running on port http://localhost:${PORT}`)
+    console.log(
+        `Code execution server on http://localhost:${PORT} (mode=${resolveExecutionMode()})`
+    )
 })
