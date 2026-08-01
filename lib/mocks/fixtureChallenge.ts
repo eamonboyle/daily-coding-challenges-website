@@ -1,8 +1,10 @@
+import type { LanguageSlug } from "@/lib/languages/registry"
+
 export interface FixtureChallenge {
     title: string
     description: string
     difficulty: string
-    solution: string
+    solutions: Record<LanguageSlug, string>
     testCases: Array<{ input: unknown; expectedOutput: unknown }>
 }
 
@@ -15,9 +17,16 @@ export const FIXTURE_CHALLENGE: FixtureChallenge = {
     description:
         "Write a function `solution(nums)` that takes an array of numbers and returns their sum.\n\nExample: solution([1, 2, 3]) → 6",
     difficulty: "easy",
-    solution: `function solution(nums: number[]): number {
+    solutions: {
+        javascript: `function solution(nums) {
   return nums.reduce((a, b) => a + b, 0);
 }`,
+        typescript: `function solution(nums: number[]): number {
+  return nums.reduce((a, b) => a + b, 0);
+}`,
+        python: `def solution(nums):
+    return sum(nums)`
+    },
     testCases: [
         { input: [1, 2, 3], expectedOutput: 6 },
         { input: [], expectedOutput: 0 },

@@ -109,7 +109,7 @@ export async function GET() {
                     title: FIXTURE_CHALLENGE.title,
                     description: FIXTURE_CHALLENGE.description,
                     difficulty: FIXTURE_CHALLENGE.difficulty,
-                    solution: FIXTURE_CHALLENGE.solution
+                    solution: FIXTURE_CHALLENGE.solutions[language.slug]
                 }
                 rawTestCases = FIXTURE_CHALLENGE.testCases
             } else {
@@ -117,9 +117,9 @@ export async function GET() {
 - Title
 - Description
 - Difficulty level (easy, medium, hard)
-- Solution code
+- Solution code defining a top-level function named \`solution\`
 
-Respond **only** with a JSON object containing the fields: "title", "description", "difficulty", and "solution". The solution should return a single value for each input. Enclose the JSON in a code block with the "json" language specifier, like so:
+The challenge must tell the user to write a function named \`solution\`. The solution function should accept one input and return a single value. Respond **only** with a JSON object containing the fields: "title", "description", "difficulty", and "solution". Enclose the JSON in a code block with the "json" language specifier, like so:
 
 \`\`\`json
 {
@@ -185,23 +185,6 @@ Respond with either a JSON array of test cases, or an object with a "testCases" 
                 )
             }
 
-            challenge = await prisma.dailyChallenge.create({
-                data: {
-                    date: today,
-                    title,
-                    description,
-                    difficulty,
-                    solution,
-                    languageSlug: language.slug,
-                    userId: user.id
-                },
-                include: { testCases: true }
-            })
-
-            logger.info("Created new daily challenge", {
-                challengeId: challenge.id
-            })
-
             let validTestCases
             try {
                 validTestCases = normalizeTestCases(rawTestCases)
@@ -227,30 +210,32 @@ Respond with either a JSON array of test cases, or an object with a "testCases" 
             logger.info("Creating test cases for the challenge", {
                 count: validTestCases.length
             })
-            await prisma.testCase.createMany({
-                data: validTestCases.map((tc) => ({
-                    challengeId: challenge!.id,
-                    input: tc.input,
-                    expectedOutput: tc.expectedOutput
-                }))
-            })
 
-            const createdTestCases = await prisma.testCase.findMany({
-                where: { challengeId: challenge.id }
-            })
+            challenge = await prisma.$transaction((tx) =>
+                tx.dailyChallenge.create({
+                    data: {
+                        date: today,
+                        title,
+                        description,
+                        difficulty,
+                        solution,
+                        languageSlug: language.slug,
+                        userId: user.id,
+                        testCases: {
+                            create: validTestCases.map((testCase) => ({
+                                input: testCase.input,
+                                expectedOutput: testCase.expectedOutput
+                            }))
+                        }
+                    },
+                    include: { testCases: true }
+                })
+            )
 
-            challenge = {
-                ...challenge,
-                testCases: createdTestCases
-            }
-        } else {
-            const existingTestCases = await prisma.testCase.findMany({
-                where: { challengeId: challenge.id }
+            logger.info("Created new daily challenge with test cases", {
+                challengeId: challenge.id,
+                testCaseCount: challenge.testCases.length
             })
-            challenge = {
-                ...challenge,
-                testCases: existingTestCases
-            }
         }
 
         return NextResponse.json({
