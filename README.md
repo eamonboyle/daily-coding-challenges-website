@@ -23,12 +23,14 @@ GPT may return array/number test values. Those are coerced to strings at the API
 
 ```bash
 cp .env.example .env.local
-# ensure Postgres is running and DATABASE_URL matches
+
+# Postgres only (credentials match .env.example DATABASE_URL)
+npm run db:up
 
 npm install
 cd code-execution-server && npm install && cd ..
 
-npx prisma db push
+DATABASE_URL="postgresql://daily_coding_challenge:daily_coding_challenge@localhost:5432/daily_coding_challenge" npx prisma db push
 
 # terminal 1
 cd code-execution-server && EXECUTION_MODE=mock npm run dev
@@ -36,6 +38,8 @@ cd code-execution-server && EXECUTION_MODE=mock npm run dev
 # terminal 2
 npm run dev
 ```
+
+Stop Postgres with `npm run db:down`.
 
 Open http://localhost:3000/challenges. Mock mode seeds a user automatically and serves the fixture "Sum Array Elements" challenge.
 

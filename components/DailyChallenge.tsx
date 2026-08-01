@@ -134,15 +134,23 @@ export default function DailyChallenge() {
 
     if (loading) {
         return (
-            <div className="flex h-64 items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-signal" />
+            <div className="space-y-6" aria-busy="true" aria-label="Loading challenge">
+                <div className="space-y-3 border-b border-border/80 pb-6">
+                    <div className="skeleton h-5 w-28 rounded-sm" />
+                    <div className="skeleton h-9 w-72 max-w-full rounded-sm" />
+                    <div className="skeleton h-16 w-full max-w-3xl rounded-sm" />
+                </div>
+                <div className="flex flex-col gap-6 lg:flex-row">
+                    <div className="skeleton h-[420px] w-full rounded-md lg:w-2/3" />
+                    <div className="skeleton h-48 w-full rounded-md lg:w-1/3" />
+                </div>
             </div>
         )
     }
 
     if (!challenge) {
         return (
-            <div className="py-16 text-center">
+            <div className="surface-panel rounded-md px-6 py-16 text-center">
                 <p className="font-display text-xl text-ink">
                     No challenge posted for today
                 </p>
@@ -160,12 +168,12 @@ export default function DailyChallenge() {
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45 }}
-            className="mx-auto max-w-[1400px]"
+            transition={{ type: "spring", duration: 0.45, bounce: 0 }}
+            className="w-full"
         >
-            <div className="mb-6 border-b border-border pb-6">
+            <div className="mb-6 border-b border-border/80 pb-6">
                 <div className="flex flex-wrap items-center gap-3">
                     <span
                         className={`rounded-sm px-2 py-0.5 font-mono text-xs uppercase tracking-wider ${getDifficultyColor(
@@ -186,12 +194,15 @@ export default function DailyChallenge() {
                 </p>
             </div>
 
-            <div className="flex flex-col gap-6 lg:flex-row">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch">
                 <div className="w-full lg:w-2/3">
-                    <div className="overflow-hidden rounded-md border border-border bg-card">
-                        <div className="flex items-center gap-2 border-b border-border px-4 py-2">
+                    <div className="surface-panel overflow-hidden rounded-md">
+                        <div className="flex items-center justify-between gap-2 border-b border-border/80 px-4 py-2.5">
                             <span className="font-mono text-xs text-muted-foreground">
                                 solution.{fileExt(challenge.languageSlug)}
+                            </span>
+                            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground/80">
+                                editor
                             </span>
                         </div>
                         <div className="p-3 sm:p-4">
@@ -231,10 +242,14 @@ export default function DailyChallenge() {
                 <div className="w-full lg:w-1/3">
                     {result ? (
                         <motion.div
-                            initial={{ opacity: 0, y: 12 }}
+                            initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.4 }}
-                            className="rounded-md border border-border bg-card p-5"
+                            transition={{
+                                type: "spring",
+                                duration: 0.4,
+                                bounce: accepted ? 0.18 : 0
+                            }}
+                            className="surface-panel h-full rounded-md p-5"
                         >
                             <h3 className="flex items-center font-display text-lg font-semibold text-ink">
                                 {accepted ? (
@@ -282,8 +297,8 @@ export default function DailyChallenge() {
                             )}
                         </motion.div>
                     ) : (
-                        <div className="flex h-full min-h-48 items-center justify-center rounded-md border border-dashed border-border bg-card/50 p-6">
-                            <p className="text-center text-muted-foreground">
+                        <div className="flex h-full min-h-48 items-center justify-center rounded-md border border-dashed border-border/80 bg-card/40 p-6">
+                            <p className="max-w-[16rem] text-center text-sm leading-relaxed text-muted-foreground">
                                 Run your solution to see test results here.
                             </p>
                         </div>

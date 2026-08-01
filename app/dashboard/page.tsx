@@ -10,11 +10,20 @@ export default async function DashboardPage() {
     }
 
     return (
-        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-            <h1 className="mb-8 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-                Dashboard
-            </h1>
-            <DashboardContent userId={userId} />
+        <div className="relative">
+            <div
+                aria-hidden
+                className="code-grid pointer-events-none absolute inset-0 opacity-25"
+            />
+            <div className="page-shell relative">
+                <p className="mb-2 font-mono text-xs uppercase tracking-wider text-signal">
+                    Account
+                </p>
+                <h1 className="mb-8 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+                    Dashboard
+                </h1>
+                <DashboardContent userId={userId} />
+            </div>
         </div>
     )
 }

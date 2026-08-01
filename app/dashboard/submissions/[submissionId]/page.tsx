@@ -39,7 +39,7 @@ export default async function SubmissionPage({
     }
 
     return (
-        <div className="container mx-auto py-8">
+        <div className="page-shell">
             <BreadcrumbContainer
                 items={[
                     { label: "Dashboard", href: "/dashboard" },
@@ -48,7 +48,7 @@ export default async function SubmissionPage({
                 ]}
             />
 
-            <Card>
+            <Card className="mt-6 border-border shadow-none">
                 <CardHeader>
                     <CardTitle>Submission Details</CardTitle>
                 </CardHeader>
