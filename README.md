@@ -1,56 +1,89 @@
-# Daily Code Challenge
+# Daily Coding Challenges
 
-This is a [Next.js](https://nextjs.org) project designed to help developers improve their coding skills through daily challenges. It was bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Next.js app that assigns a shared daily coding challenge by language, grades submissions against generated test cases, and runs user code in an isolated execution service.
 
-## New Code Execution Server
+## Architecture
 
-We have introduced a new project called **Code Execution Server**. This server allows users to run their code submissions in a secure environment, providing instant feedback on their solutions.
+- **Next.js** (`app/`) serves the UI and challenge/submit APIs. Challenges are generated with OpenAI (or a fixture in mock mode) and stored in Postgres via Prisma.
+- **Code execution server** (`code-execution-server/`) accepts a single `{ language, code, input? }` request or a batch `{ language, cases }` request and returns execution output.
+  - `EXECUTION_MODE=docker` builds cached language images and runs each submission in a container.
+  - `EXECUTION_MODE=mock` runs JavaScript/TypeScript in-process (via `vm` + TypeScript transpile) and Python via `python3`. Use this when Docker is unavailable.
 
-### Tech Stack
+Submission flow:
 
--   **Node.js**: For server-side execution.
--   **Docker**: To create isolated environments for different programming languages.
--   **Express**: To handle API requests.
--   **MongoDB**: For storing user submissions and profiles.
+1. `POST /api/challenge/submit` wraps the required `solution` function with each test input.
+2. Next.js sends all wrapped cases to `CODE_EXECUTION_URL/execute` in one batch, with single-request fallback for an older executor.
+3. Stdout is compared to the expected output (JSON-aware).
 
-## Getting Started
+GPT may return array/number test values. Those are coerced to strings at the API boundary (`lib/testCases.ts`) before Prisma storage.
 
-First, run the development server:
+`Challenge` is unique by `(date, languageSlug)`. `Assignment` links each user to one challenge for a date, so users with the same preferred language share challenge and test-case rows while submissions remain user-owned.
+
+## Quick start (mock mode, no Docker / no OpenAI / no Clerk)
 
 ```bash
+cp .env.example .env.local
+# ensure Postgres is running and DATABASE_URL matches
+
+npm install
+cd code-execution-server && npm install && cd ..
+
+npx prisma db push
+
+# terminal 1
+cd code-execution-server && EXECUTION_MODE=mock npm run dev
+
+# terminal 2
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the application in action.
+Open http://localhost:3000/challenges. Mock mode seeds a user automatically and serves the fixture "Sum Array Elements" challenge.
 
-You can start editing the main page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Set `APP_MODE=mock`, `NEXT_PUBLIC_APP_MODE=mock`, and `EXECUTION_MODE=mock` (see `.env.example`). The public flag makes client components skip Clerk hooks; the executor flag selects its no-Docker backend. In this mode Next.js defaults to `http://localhost:5000` when `CODE_EXECUTION_URL` is omitted. Compose still sets the service URL explicitly.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Verify the executor alone:
 
-## Features
+```bash
+npm run verify:mock
+```
 
--   Daily coding challenges to enhance your programming skills.
--   User profiles to track progress and submissions.
--   Community feedback on coding solutions.
--   Support for multiple programming languages.
+TypeScript is pinned to **5.9.3**. TypeScript 7 removed the classic `transpileModule` API and breaks `ts-node` / current `eslint-config-next` peers, so 5.9.3 is the newest release that keeps mock execution and tooling working.
 
-## Learn More
+## Docker Compose (full stack)
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+cp .env.docker.example .env.docker
+# fill OPENAI_API_KEY and Clerk keys; set EXECUTION_MODE=docker
 
--   [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
--   [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+docker compose up --build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Services:
 
-## Deploy on Vercel
+| Service | Port | Role |
+| --- | --- | --- |
+| postgres | 5432 | Challenge / submission data |
+| nextjs | 3000 | Web app |
+| code-execution | 5000 | Runner (`docker.sock` mounted for language containers) |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Environment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See `.env.example` and `.env.docker.example`.
+
+| Variable | Meaning |
+| --- | --- |
+| `APP_MODE` | `mock` bypasses Clerk on the server and seeds a local user |
+| `NEXT_PUBLIC_APP_MODE` | `mock` makes client components skip Clerk hooks |
+| `MOCK_OPENAI` | Use fixture challenge instead of calling OpenAI |
+| `EXECUTION_MODE` | `mock` or `docker` for the code-execution server |
+| `CODE_EXECUTION_URL` | Base URL Next.js uses to reach the executor |
+| `DATABASE_URL` | Postgres connection string |
+
+## Scripts
+
+| Script | Where | Purpose |
+| --- | --- | --- |
+| `npm run dev` | root | Next.js dev server |
+| `npm run verify:mock` | root | Smoke-test test-case normalization + mock executor |
+| `npm run dev` | `code-execution-server/` | Executor on port 5000 |
+| `npm run up` / `down` | root | `docker compose up -d` / `down` |

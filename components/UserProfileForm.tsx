@@ -110,24 +110,24 @@ export default function UserProfileForm() {
     }
 
     return (
-        <Card className="w-full max-w-2xl mx-auto">
+        <Card className="mx-auto w-full max-w-2xl border-border shadow-none">
             <CardHeader>
                 <div className="flex items-center space-x-4">
-                    <Avatar className="w-20 h-20">
+                    <Avatar className="h-16 w-16">
                         <AvatarImage
                             src="/path-to-avatar-image.jpg"
                             alt="User avatar"
                         />
-                        <AvatarFallback>
+                        <AvatarFallback className="bg-muted font-display text-lg text-ink">
                             {form.getValues("username").charAt(0).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
                     <div>
-                        <CardTitle className="text-2xl font-bold">
-                            Edit Profile
+                        <CardTitle className="font-display text-2xl font-semibold text-ink">
+                            Edit profile
                         </CardTitle>
                         <p className="text-sm text-muted-foreground">
-                            Update your personal information
+                            Your public name and contact details
                         </p>
                     </div>
                 </div>
@@ -136,7 +136,7 @@ export default function UserProfileForm() {
                 <Form {...form}>
                     <form
                         onSubmit={form.handleSubmit(onSubmit)}
-                        className="space-y-6 w-full"
+                        className="w-full space-y-6"
                     >
                         <FormField
                             control={form.control}
@@ -204,9 +204,9 @@ export default function UserProfileForm() {
                         <Button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full"
+                            className="w-full bg-signal text-white hover:bg-signal/90"
                         >
-                            {isLoading ? "Updating..." : "Update Profile"}
+                            {isLoading ? "Saving…" : "Save changes"}
                         </Button>
                     </form>
                 </Form>

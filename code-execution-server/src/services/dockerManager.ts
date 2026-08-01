@@ -5,6 +5,7 @@ import Docker from "dockerode"
 import fs from "fs"
 import path from "path"
 import tarStream from "tar-stream"
+import { PassThrough } from "stream"
 import logger from "../utils/logger"
 import { CodeExecutionRequest, LanguageConfig } from "../types"
 import { getLanguageConfig } from "../config/languageConfig"
@@ -19,6 +20,7 @@ interface CachedImage {
 
 const MAX_CACHE_SIZE = 50 // Maximum number of cached images
 const CACHE_EVICTION_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours
+const EXECUTION_TIMEOUT_MS = 10_000
 
 const CACHE_METADATA_PATH = path.join(__dirname, "../cacheMetadata.json")
 
@@ -226,7 +228,7 @@ export class DockerManager {
     ): Promise<{ stdout: string; stderr: string }> {
         logger.info(`Creating Docker container from image: ${imageName}`)
 
-        // Define a unique container name or use auto-generated
+        const codeFileName = path.basename(codeFilePath)
         const container = await docker.createContainer({
             Image: imageName,
             Tty: false,
@@ -235,57 +237,75 @@ export class DockerManager {
             WorkingDir: "/usr/src/app",
             Env: input ? [`INPUT=${input}`] : [],
             HostConfig: {
-                AutoRemove: true,
-                NetworkMode: "bridge",
-                Memory: 128 * 1024 * 1024, // 128MB
+                NetworkMode: "none",
+                Memory: 128 * 1024 * 1024,
                 CpuShares: 256,
-                Dns: ["8.8.8.8", "8.8.4.4"],
-                Binds: [`${codeFilePath}:/usr/src/app/Solution.ts`] // Adjust path and filename as needed
+                PidsLimit: 64
             },
-            Cmd: ["sh", "-c", runCommand] // Override CMD if necessary
+            Cmd: ["sh", "-c", runCommand]
         })
 
+        let timeout: NodeJS.Timeout | undefined
         try {
-            logger.info("Starting Docker container")
-            await container.start()
+            const archive = tarStream.pack()
+            archive.entry(
+                { name: codeFileName, mode: 0o444 },
+                fs.readFileSync(codeFilePath)
+            )
+            archive.finalize()
+            await container.putArchive(archive, { path: "/usr/src/app" })
 
-            logger.info("Attaching to container logs")
-            const logs = await container.logs({
+            const stream = await container.attach({
+                stream: true,
                 stdout: true,
-                stderr: true,
-                follow: true
+                stderr: true
             })
 
             let stdout = ""
             let stderr = ""
+            const stdoutStream = new PassThrough()
+            const stderrStream = new PassThrough()
 
-            const logsPromise = new Promise<void>((resolve, reject) => {
-                logs.on("data", (chunk: Buffer) => {
-                    const log = chunk
-                        .toString("utf-8")
-                        .replace(/[^\x20-\x7E]/g, "") // Filter non-printable characters
-                    logger.debug(`Container output: ${log}`) // Use debug level to reduce log verbosity
-                    stdout = log
-                })
-
-                logs.on("end", () => {
-                    logger.info("Logs stream ended")
-                    resolve()
-                })
-
-                logs.on("error", (err) => {
-                    logger.error("Error while reading container logs:", err)
-                    stderr = err.toString()
-                    reject(err)
-                })
+            stdoutStream.on("data", (chunk: Buffer) => {
+                stdout += chunk.toString("utf-8")
+            })
+            stderrStream.on("data", (chunk: Buffer) => {
+                stderr += chunk.toString("utf-8")
             })
 
-            await logsPromise
+            container.modem.demuxStream(stream, stdoutStream, stderrStream)
 
-            return { stdout, stderr }
+            logger.info("Starting Docker container")
+            await container.start()
+
+            const timedOut = new Promise<never>((_, reject) => {
+                timeout = setTimeout(() => {
+                    void container.stop({ t: 0 }).catch((error) => {
+                        logger.warn("Failed to stop timed-out container", {
+                            error
+                        })
+                    })
+                    reject(
+                        new Error(
+                            `Execution timed out after ${EXECUTION_TIMEOUT_MS}ms`
+                        )
+                    )
+                }, EXECUTION_TIMEOUT_MS)
+            })
+
+            await Promise.race([container.wait(), timedOut])
+
+            return { stdout: stdout.trim(), stderr: stderr.trim() }
         } catch (error) {
             logger.error("Error during container execution:", error)
             throw error
+        } finally {
+            if (timeout) {
+                clearTimeout(timeout)
+            }
+            await container.remove({ force: true }).catch((error) => {
+                logger.warn("Failed to remove execution container", { error })
+            })
         }
     }
 
@@ -389,6 +409,3 @@ export class DockerManager {
         }
     }
 }
-
-// Initialize cache eviction when the module is loaded
-DockerManager.initializeCacheEviction()

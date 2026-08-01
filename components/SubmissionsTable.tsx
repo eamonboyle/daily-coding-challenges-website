@@ -25,6 +25,27 @@ interface SubmissionsTableProps {
     userId: string
 }
 
+function statusTone(status: string, score: number) {
+    const normalized = status.toLowerCase()
+    if (
+        score === 100 ||
+        normalized === "accepted" ||
+        normalized === "completed"
+    ) {
+        return "bg-pass/15 text-pass"
+    }
+    if (score === 0 || normalized.includes("error")) {
+        return "bg-fail/15 text-fail"
+    }
+    return "bg-signal/15 text-signal"
+}
+
+function scoreTone(score: number) {
+    if (score === 100) return "bg-pass/15 text-pass"
+    if (score === 0) return "bg-fail/15 text-fail"
+    return "bg-signal/15 text-signal"
+}
+
 export default function SubmissionsTable({ userId }: SubmissionsTableProps) {
     const [submissions, setSubmissions] = useState<SubmissionWithChallenge[]>(
         []
@@ -58,39 +79,52 @@ export default function SubmissionsTable({ userId }: SubmissionsTableProps) {
     }, [userId, currentPage])
 
     if (loading) {
-        return <div className="text-center">Loading...</div>
+        return (
+            <div className="py-8 text-center text-muted-foreground">
+                Loading submissions…
+            </div>
+        )
     }
 
     if (submissions.length === 0) {
         return (
-            <p className="text-gray-600 dark:text-gray-400">
-                You haven&apos;t made any submissions yet.
-            </p>
+            <div className="rounded-md border border-dashed border-border px-6 py-10 text-center">
+                <p className="text-ink">No submissions yet</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Open today&apos;s challenge and run your first solution.
+                </p>
+                <Link
+                    href="/challenges"
+                    className="mt-4 inline-flex bg-signal px-4 py-2 text-sm font-medium text-white hover:bg-signal/90"
+                >
+                    Open today&apos;s challenge
+                </Link>
+            </div>
         )
     }
 
     return (
         <div className="space-y-6">
-            <div className="rounded-md border">
+            <div className="overflow-hidden rounded-md border border-border">
                 <Table>
                     <TableHeader>
-                        <TableRow className="bg-gray-100 dark:bg-gray-800">
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">
+                        <TableRow className="bg-muted/50 hover:bg-muted/50">
+                            <TableHead className="px-4 py-3 font-mono text-xs uppercase tracking-wider">
                                 Date
                             </TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">
+                            <TableHead className="px-4 py-3 font-mono text-xs uppercase tracking-wider">
                                 Challenge
                             </TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">
+                            <TableHead className="px-4 py-3 font-mono text-xs uppercase tracking-wider">
                                 Language
                             </TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">
+                            <TableHead className="px-4 py-3 font-mono text-xs uppercase tracking-wider">
                                 Status
                             </TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">
+                            <TableHead className="px-4 py-3 font-mono text-xs uppercase tracking-wider">
                                 Score
                             </TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-3 px-4">
+                            <TableHead className="px-4 py-3 font-mono text-xs uppercase tracking-wider">
                                 Action
                             </TableHead>
                         </TableRow>
@@ -99,27 +133,25 @@ export default function SubmissionsTable({ userId }: SubmissionsTableProps) {
                         {submissions.map((submission) => (
                             <TableRow
                                 key={submission.id}
-                                className="hover:bg-gray-50 dark:hover:bg-gray-700"
+                                className="hover:bg-muted/30"
                             >
-                                <TableCell className="py-3 px-4">
+                                <TableCell className="px-4 py-3 font-mono text-sm text-muted-foreground">
                                     {new Date(
                                         submission.createdAt
                                     ).toLocaleDateString()}
                                 </TableCell>
-                                <TableCell className="py-3 px-4 font-medium">
+                                <TableCell className="px-4 py-3 font-medium text-ink">
                                     {submission.challenge.title}
                                 </TableCell>
-                                <TableCell className="py-3 px-4">
-                                    {submission.language}
+                                <TableCell className="px-4 py-3 font-mono text-sm">
+                                    {submission.languageSlug}
                                 </TableCell>
-                                <TableCell className="py-3 px-4">
+                                <TableCell className="px-4 py-3">
                                     <span
-                                        className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                                            submission.status.toLowerCase() ===
-                                            "completed"
-                                                ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
-                                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
-                                        }`}
+                                        className={`inline-block rounded-sm px-2 py-0.5 text-xs font-medium ${statusTone(
+                                            submission.status,
+                                            submission.score
+                                        )}`}
                                     >
                                         {submission.status
                                             .charAt(0)
@@ -129,23 +161,18 @@ export default function SubmissionsTable({ userId }: SubmissionsTableProps) {
                                                 .toLowerCase()}
                                     </span>
                                 </TableCell>
-                                <TableCell className="py-3 px-4">
+                                <TableCell className="px-4 py-3">
                                     <span
-                                        className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                                            submission.score === 100
-                                                ? "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
-                                                : submission.score === 0
-                                                  ? "bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100"
-                                                  : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100"
-                                        }`}
+                                        className={`inline-block rounded-sm px-2 py-0.5 font-mono text-xs font-medium ${scoreTone(
+                                            submission.score
+                                        )}`}
                                     >
                                         {submission.score}
                                     </span>
                                 </TableCell>
-                                <TableCell className="py-3 px-4">
+                                <TableCell className="px-4 py-3">
                                     <Link
                                         href={`/dashboard/submissions/${submission.id}`}
-                                        passHref
                                     >
                                         <Button variant="outline" size="sm">
                                             View
@@ -164,7 +191,7 @@ export default function SubmissionsTable({ userId }: SubmissionsTableProps) {
                         <PaginationPrevious
                             className={
                                 currentPage === 1
-                                    ? "opacity-50 cursor-not-allowed"
+                                    ? "cursor-not-allowed opacity-50"
                                     : "cursor-pointer"
                             }
                             onClick={() =>
@@ -177,7 +204,7 @@ export default function SubmissionsTable({ userId }: SubmissionsTableProps) {
                             <PaginationLink
                                 className={
                                     currentPage === index + 1
-                                        ? "bg-gray-200 dark:bg-gray-700"
+                                        ? "bg-muted"
                                         : "cursor-pointer"
                                 }
                                 onClick={() => setCurrentPage(index + 1)}
@@ -191,7 +218,7 @@ export default function SubmissionsTable({ userId }: SubmissionsTableProps) {
                         <PaginationNext
                             className={
                                 currentPage === totalPages
-                                    ? "opacity-50 cursor-not-allowed"
+                                    ? "cursor-not-allowed opacity-50"
                                     : "cursor-pointer"
                             }
                             onClick={() =>

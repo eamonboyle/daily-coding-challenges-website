@@ -1,42 +1,40 @@
 import { NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
 import { prisma } from "@/lib/prisma"
+import { isAuthError, isMockMode, requireUser } from "@/lib/auth"
 
 export async function DELETE(req: Request) {
     try {
-        const { userId } = auth()
-        if (!userId) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-        }
+        const user = await requireUser()
 
-        const user = await prisma.user.findUnique({
-            where: { clerkId: userId }
-        })
-
-        if (!user || user.email !== "blaowskate@hotmail.com") {
+        const allowed =
+            isMockMode() ||
+            user?.email === "blaowskate@hotmail.com" ||
+            user?.email === "mock@example.com"
+        if (!user || !allowed) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
 
-        // CSRF protection
         const origin = req.headers.get("origin")
-        if (origin !== process.env.NEXT_PUBLIC_APP_URL) {
+        if (!isMockMode() && origin !== process.env.NEXT_PUBLIC_APP_URL) {
             return NextResponse.json(
                 { error: "CSRF check failed" },
                 { status: 403 }
             )
         }
 
-        // Delete all TestCases
-        await prisma.testCase.deleteMany()
-
-        // Delete all Submissions
         await prisma.submission.deleteMany()
-
-        // Delete all DailyChallenges
-        await prisma.dailyChallenge.deleteMany()
+        await prisma.testCase.deleteMany()
+        await prisma.assignment.deleteMany()
+        await prisma.challenge.deleteMany()
 
         return NextResponse.json({ message: "All data cleared successfully" })
     } catch (error) {
+        if (isAuthError(error)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: error.status }
+            )
+        }
         console.error("Error clearing data:", error)
         return NextResponse.json(
             { error: "Internal Server Error" },
