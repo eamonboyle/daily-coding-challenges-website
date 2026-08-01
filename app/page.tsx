@@ -1,102 +1,73 @@
+import Link from "next/link"
+
 export default function Home() {
     return (
-        <main className="py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-4xl mx-auto">
-                <div className="text-center">
-                    <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white sm:text-5xl md:text-6xl">
-                        Daily Coding Challenges
-                    </h1>
-                    <p className="mt-3 max-w-md mx-auto text-base text-gray-600 dark:text-gray-300 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-                        Sharpen your coding skills with daily programming
-                        challenges. Practice, learn, and grow as a developer.
+        <>
+            <section className="relative isolate min-h-[calc(100vh-4rem)] overflow-hidden">
+                <div
+                    aria-hidden
+                    className="code-grid animate-grid-drift gutter-lines absolute inset-0"
+                />
+                <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_70%_20%,color-mix(in_srgb,var(--signal)_14%,transparent),transparent_55%)]"
+                />
+
+                <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col justify-center px-6 py-20 sm:px-8">
+                    <p className="animate-rise font-mono text-sm tracking-wide text-signal">
+                        // today&apos;s buffer
+                        <span className="animate-caret ml-1 inline-block h-3.5 w-1.5 translate-y-0.5 bg-signal align-middle" />
                     </p>
-                    <div className="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
-                        <div className="rounded-md shadow">
-                            <a
-                                href="/challenges"
-                                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 md:py-4 md:text-lg md:px-10"
-                            >
-                                Start Coding
-                            </a>
-                        </div>
-                        <div className="mt-3 rounded-md shadow sm:mt-0 sm:ml-3">
-                            <a
-                                href="/about"
-                                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-gray-50 dark:text-indigo-400 dark:bg-gray-800 dark:hover:bg-gray-700 md:py-4 md:text-lg md:px-10"
-                            >
-                                Learn More
-                            </a>
-                        </div>
+
+                    <h1 className="animate-rise-delay-1 mt-5 max-w-3xl font-display text-5xl font-semibold leading-[1.05] tracking-tight text-ink sm:text-6xl md:text-7xl">
+                        Daily Code Challenge
+                    </h1>
+
+                    <p className="animate-rise-delay-1 mt-5 max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+                        One problem. Your language. Instant feedback.
+                    </p>
+
+                    <div className="animate-rise-delay-2 mt-10 flex flex-wrap items-center gap-4">
+                        <Link
+                            href="/challenges"
+                            className="inline-flex items-center bg-signal px-6 py-3 text-base font-medium text-white transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--signal)]"
+                        >
+                            Open today&apos;s challenge
+                        </Link>
+                        <Link
+                            href="/about"
+                            className="inline-flex items-center px-2 py-3 font-mono text-sm text-ink underline-offset-4 transition-colors hover:text-signal hover:underline"
+                        >
+                            How it works
+                        </Link>
                     </div>
                 </div>
+            </section>
 
-                <div className="mt-16">
-                    <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-                        Why Daily Coding Challenges?
-                    </h2>
-                    <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-2">
-                        <div className="flex">
-                            <div className="flex-shrink-0">
-                                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white">
-                                    <svg
-                                        className="h-6 w-6"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                                        />
-                                    </svg>
-                                </div>
-                            </div>
-                            <div className="ml-4">
-                                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                                    Daily Practice
-                                </h3>
-                                <p className="mt-2 text-base text-gray-600 dark:text-gray-300">
-                                    Consistent practice is key to improving your
-                                    coding skills. Our daily challenges keep you
-                                    engaged and learning.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex">
-                            <div className="flex-shrink-0">
-                                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white">
-                                    <svg
-                                        className="h-6 w-6"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                                        />
-                                    </svg>
-                                </div>
-                            </div>
-                            <div className="ml-4">
-                                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                                    Diverse Challenges
-                                </h3>
-                                <p className="mt-2 text-base text-gray-600 dark:text-gray-300">
-                                    From algorithms to data structures, our
-                                    challenges cover a wide range of programming
-                                    concepts and difficulty levels.
-                                </p>
-                            </div>
-                        </div>
+            <section className="border-t border-border bg-card/60">
+                <div className="mx-auto grid max-w-5xl gap-10 px-6 py-16 sm:grid-cols-2 sm:px-8">
+                    <div>
+                        <h2 className="font-display text-2xl font-semibold text-ink">
+                            Show up every day
+                        </h2>
+                        <p className="mt-3 text-muted-foreground leading-relaxed">
+                            A short problem lands once a day. Solve it in
+                            JavaScript, TypeScript, or Python and keep the
+                            streak going.
+                        </p>
+                    </div>
+                    <div>
+                        <h2 className="font-display text-2xl font-semibold text-ink">
+                            See what passed
+                        </h2>
+                        <p className="mt-3 text-muted-foreground leading-relaxed">
+                            Each submission runs against real test cases. You
+                            get a score from tests passed, not a vague pass/fail
+                            guess.
+                        </p>
                     </div>
                 </div>
-            </div>
-        </main>
+            </section>
+        </>
     )
 }

@@ -1,0 +1,11 @@
+ts	phase	decision	why	evidence	result
+2026-08-01T09:24:00Z	frame	Implement all architecture Act-on and Consider items	User said implement all after critique; definition of done is verify:mock plus Accepted submit	prior critique turn	open
+2026-08-01T09:24:00Z	frame	Sequence U1 delete through U7 shared Challenge	Riskiest unknown first is data model but deletion unblocks registry; scaffold then feature	figure-it-out Phase B	open
+2026-08-01T09:44:15Z	u1	Deleted Judge0 result/test routes and dead helpers	Subtract dead grading paths first	commit ec5b4a2	verify:mock later green
+2026-08-01T09:44:15Z	u2	Single language registry js/ts/python with languageSlug	One source of truth for selectable=runnable	commit 253b2eb lib/languages/registry.ts	verify:mock green
+2026-08-01T09:44:15Z	u3	requireUser authz and strip solution from daily GET	Boundary discipline on API and grading secrets	commit 69125f9	e2e no-leak
+2026-08-01T09:44:15Z	u4	Transactional challenge create and solution contract	Atomic write plus fixed entry point name	commit 965f860	open
+2026-08-01T09:44:15Z	u5	TestResult rows and passedTests/totalTests scores	Honest grading persistence	commit be94cdc	e2e Accepted 4/4 Wrong 1/4
+2026-08-01T09:44:15Z	u6	Batch execute plus putArchive Docker inputs and timeout	Fix nested Docker bind and N round trips	commit 2e41fa2	verify:mock green
+2026-08-01T09:44:15Z	u7	Shared Challenge plus Assignment per user day	Generation shared by date and languageSlug	commit 452a049	e2e daily+submit green
+2026-08-01T09:44:15Z	verify	Mock e2e Accepted and Wrong Answer after full refactor	Prove it works on real servers	curl daily/submit 2026-08-01	VERIFIED

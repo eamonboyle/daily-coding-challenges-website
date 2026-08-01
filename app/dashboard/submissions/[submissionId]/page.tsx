@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation"
-import { auth } from "@clerk/nextjs/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BreadcrumbContainer } from "@/components/BreadcrumbContainer"
 import MonacoEditor from "@/components/MonacoEditor"
 import { prisma } from "@/lib/prisma"
+import { getAuthUserId } from "@/lib/auth"
 
 async function getSubmission(submissionId: string) {
-    const { userId } = auth()
+    const userId = await getAuthUserId()
     if (!userId) {
         throw new Error("User not authenticated")
     }
@@ -29,9 +29,10 @@ async function getSubmission(submissionId: string) {
 export default async function SubmissionPage({
     params
 }: {
-    params: { submissionId: string }
+    params: Promise<{ submissionId: string }>
 }) {
-    const submission = await getSubmission(params.submissionId)
+    const { submissionId } = await params
+    const submission = await getSubmission(submissionId)
 
     if (!submission) {
         notFound()
@@ -67,7 +68,7 @@ export default async function SubmissionPage({
                         </div>
                         <div>
                             <h3 className="font-semibold">Language</h3>
-                            <p>{submission.language}</p>
+                            <p>{submission.languageSlug}</p>
                         </div>
                         <div>
                             <h3 className="font-semibold">Status</h3>
@@ -77,11 +78,17 @@ export default async function SubmissionPage({
                             <h3 className="font-semibold">Score</h3>
                             <p>{submission.score}</p>
                         </div>
+                        <div>
+                            <h3 className="font-semibold">Tests Passed</h3>
+                            <p>
+                                {submission.passedTests}/{submission.totalTests}
+                            </p>
+                        </div>
                     </div>
                     <div className="mt-6">
                         <h3 className="font-semibold">Code</h3>
                         <MonacoEditor
-                            language={submission.language}
+                            language={submission.languageSlug}
                             value={submission.code}
                             readOnly={true}
                         />

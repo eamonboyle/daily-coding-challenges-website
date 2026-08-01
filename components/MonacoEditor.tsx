@@ -9,6 +9,7 @@ interface MonacoEditorProps {
     onChange?: (value: string | undefined) => void
     readOnly?: boolean
     showMinimap?: boolean
+    height?: string
 }
 
 export default function MonacoEditor({
@@ -16,13 +17,16 @@ export default function MonacoEditor({
     value,
     onChange,
     readOnly = false,
-    showMinimap = false
+    showMinimap = false,
+    height = "400px"
 }: MonacoEditorProps) {
     const { theme } = useTheme()
 
+    // TODO: Expose more options
+
     return (
         <Editor
-            height="400px"
+            height={height}
             language={language.toLowerCase()}
             value={value}
             theme={theme === "dark" ? "vs-dark" : "light"}
@@ -34,7 +38,11 @@ export default function MonacoEditor({
                 lineNumbers: "on",
                 roundedSelection: false,
                 scrollBeyondLastLine: false,
-                automaticLayout: true
+                automaticLayout: true,
+                formatOnPaste: true,
+                wordWrap: "on",
+                autoIndent: "full",
+                tabSize: 4
             }}
         />
     )
