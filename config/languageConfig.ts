@@ -7,8 +7,19 @@ export const languageConfigs: LanguageConfig[] = [
         name: "javascript",
         fileExtension: "js",
         formatValue: (value: any): string => {
-            // Add your format logic here
-            return String(value) // Placeholder
+            const type = typeof value
+            switch (type) {
+                case "string":
+                    return `"${escapeString(value)}"`
+                case "number":
+                case "boolean":
+                    return `${value}`
+                case "object":
+                    if (value === null) return "null"
+                    return JSON.stringify(value)
+                default:
+                    return `"${escapeString(String(value))}"`
+            }
         }
     },
     {

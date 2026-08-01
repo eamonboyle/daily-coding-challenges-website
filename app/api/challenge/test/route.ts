@@ -1,19 +1,16 @@
-// app/api/submit-code/route.ts
-
 import { prisma } from "@/lib/prisma"
-import { auth } from "@clerk/nextjs/server"
+import { getAuthUserId } from "@/lib/auth"
 import { NextResponse } from "next/server"
 import vm from "vm"
+import { parseStoredValue, outputsMatch } from "@/lib/testCases"
 
 export async function POST(request: Request) {
     try {
-        // 1. Authenticate the user
-        const { userId } = auth()
+        const userId = getAuthUserId()
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        // 2. Fetch the user from the database
         const user = await prisma.user.findUnique({
             where: { clerkId: userId }
         })
@@ -24,7 +21,6 @@ export async function POST(request: Request) {
             )
         }
 
-        // 3. Extract and validate the submitted code from the request body
         const { code } = await request.json()
         if (typeof code !== "string" || !code.trim()) {
             return NextResponse.json(
@@ -33,7 +29,6 @@ export async function POST(request: Request) {
             )
         }
 
-        // 4. Fetch today's challenge for the user
         const today = new Date()
         today.setHours(0, 0, 0, 0)
 
@@ -51,49 +46,47 @@ export async function POST(request: Request) {
             )
         }
 
-        // 5. Run the code against the challenge's test cases
         const testCases = challenge.testCases
         const results = []
 
         if (testCases && Array.isArray(testCases)) {
             for (const testCase of testCases) {
                 try {
-                    // Create a sandboxed environment with limited globals
                     const context = vm.createContext({
-                        console // Allow console logs if needed
-                        // Add other safe globals if necessary
+                        console,
+                        exports: {} as Record<string, unknown>,
+                        module: { exports: {} as Record<string, unknown> }
                     })
+                    context.exports = context.module.exports
 
-                    // Wrap the user's code in a function to capture exports
                     const wrappedCode = `
                         ${code}
-                        if (typeof exports === 'undefined') {
-                        var exports = {};
-                        }
-                        exports
+                        module.exports
                     `
 
-                    // Run the user's code in the sandbox
                     const script = new vm.Script(wrappedCode)
-                    const moduleExports = script.runInContext(context)
+                    const moduleExports = script.runInContext(context) as {
+                        solution?: (input: unknown) => unknown
+                    }
 
-                    // Ensure the user has exported a function named 'solution'
                     if (typeof moduleExports.solution !== "function") {
                         throw new Error("No function named 'solution' exported")
                     }
 
-                    // Execute the solution function with the input
-                    const actual = moduleExports.solution(testCase.input)
+                    const input = parseStoredValue(testCase.input)
+                    const actual = moduleExports.solution(input)
+                    const actualStr =
+                        typeof actual === "string"
+                            ? actual
+                            : JSON.stringify(actual)
 
-                    // Record the result
                     results.push({
                         input: testCase.input,
                         expected: testCase.expectedOutput,
-                        actual,
-                        passed: actual === testCase.expectedOutput
+                        actual: actualStr,
+                        passed: outputsMatch(actualStr, testCase.expectedOutput)
                     })
                 } catch (error) {
-                    // If there's an error, record it as a failed test
                     results.push({
                         input: testCase.input,
                         error:
@@ -111,7 +104,6 @@ export async function POST(request: Request) {
             )
         }
 
-        // 6. Optionally, record the submission in the database
         await prisma.submission.create({
             data: {
                 userId: user.id,
@@ -119,16 +111,14 @@ export async function POST(request: Request) {
                 code,
                 status: "completed",
                 score: 0,
-                // results: JSON.stringify(results), // Store results as JSON
                 languageId: user.preferredLanguageId,
                 language: user.preferredLanguage
             }
         })
 
-        // 7. Return the test results
         return NextResponse.json(results)
     } catch (error) {
-        console.error("Error in POST /api/submit-code:", error)
+        console.error("Error in POST /api/challenge/test:", error)
         return NextResponse.json(
             { error: "Internal Server Error" },
             { status: 500 }

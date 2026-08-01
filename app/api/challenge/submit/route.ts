@@ -1,20 +1,20 @@
 import { NextResponse } from "next/server"
-import { auth } from "@clerk/nextjs/server"
 import { getLanguageById } from "@/lib/languages"
 import { prisma } from "@/lib/prisma"
 import { extractFunctionName, languageTemplates } from "@/lib/templates"
 import { TestCase } from "@prisma/client"
 import formatTestInput from "@/lib/formatTestInput"
+import { getAuthUserId } from "@/lib/auth"
+import { outputsMatch } from "@/lib/testCases"
+import logger from "@/lib/logger"
 
-// Define environment variable for your backend service
-const CODE_EXECUTION_API_URL =
-    process.env.CODE_EXECUTION_API_URL || "http://localhost:5000"
+const CODE_EXECUTION_URL =
+    process.env.CODE_EXECUTION_URL || "http://localhost:5000"
 
 export async function POST(request: Request) {
-    const startTime = Date.now() // Start time tracking
+    const startTime = Date.now()
     try {
-        // Authenticate the user
-        const { userId } = auth()
+        const userId = getAuthUserId()
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
             code: string,
             input: string
         ) => {
-            const response = await fetch(`${CODE_EXECUTION_API_URL}/execute`, {
+            const response = await fetch(`${CODE_EXECUTION_URL}/execute`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -118,12 +118,14 @@ export async function POST(request: Request) {
             })
 
             if (!response.ok) {
-                const errorData = await response.json()
-                throw new Error(errorData.error || "Failed to execute code")
+                const errorData = await response.json().catch(() => ({}))
+                throw new Error(
+                    (errorData as { error?: string }).error ||
+                        "Failed to execute code"
+                )
             }
 
-            const data = await response.json()
-            return data // { stdout: string, stderr: string }
+            return response.json()
         }
 
         // Initialize variables for scoring and results
@@ -132,7 +134,11 @@ export async function POST(request: Request) {
         let passedTests = 0
         const outputs: string[] = []
         const errors: string[] = []
-        const results: { stdout: string; stderr: string }[] = []
+        const results: {
+            stdout: string
+            stderr: string
+            error?: string
+        }[] = []
 
         // Process each test case
         for (const testCase of testCases) {
@@ -146,9 +152,11 @@ export async function POST(request: Request) {
                     testCase.input // Pass the test case input here
                 )
 
-                console.log({ code, testCase, wrappedCode, result })
+                logger.info("Executed test case", {
+                    testCaseId: testCase.id,
+                    hasStderr: Boolean(result.stderr)
+                })
             } catch (error) {
-                // Handle execution service errors
                 result = {
                     stdout: "",
                     stderr:
@@ -160,14 +168,10 @@ export async function POST(request: Request) {
             outputs.push(result.stdout)
             errors.push(result.stderr)
 
-            // Determine status based on stderr
-            const status = result.stderr ? "error" : "success"
+            const executionFailed = Boolean(result.stderr || result.error)
 
-            if (status === "success") {
-                const userOutput = result.stdout.trim()
-                const expectedOutput = testCase.expectedOutput.trim()
-
-                if (userOutput === expectedOutput) {
+            if (!executionFailed) {
+                if (outputsMatch(result.stdout, testCase.expectedOutput)) {
                     totalScore += 100
                     passedTests += 1
                 }
@@ -208,8 +212,7 @@ export async function POST(request: Request) {
             executionTime: submission.executionTime // Include execution time in response
         })
     } catch (error) {
-        // Handle any errors
-        console.error("Error submitting challenge:", error)
+        logger.error("Error submitting challenge:", { error })
         return NextResponse.json(
             { error: "Internal Server Error" },
             { status: 500 }
