@@ -2,34 +2,43 @@ import Link from "next/link"
 
 export default function Footer() {
     return (
-        <footer className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 py-8 mt-12">
-            <div className="container mx-auto px-4">
-                <div className="flex flex-wrap justify-center items-start">
-                    <div className="w-full md:w-1/3 mb-6 md:mb-0 text-center">
-                        <h2 className="text-lg font-semibold mb-2">
-                            Daily Code Challenge
-                        </h2>
-                        <p className="text-sm">
-                            Improve your coding skills every day.
+        <footer className="mt-auto border-t border-border bg-card/40">
+            <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+                <div>
+                    <p className="font-display text-lg font-semibold text-ink">
+                        <span className="font-mono text-signal">/</span> Daily
+                        Code Challenge
+                    </p>
+                    <p className="mt-2 max-w-xs text-sm text-muted-foreground">
+                        A short problem every day. Write it, run it, improve.
+                    </p>
+                </div>
+                <div className="flex gap-12 text-sm">
+                    <div>
+                        <p className="mb-2 font-mono text-xs uppercase tracking-wider text-muted-foreground">
+                            Navigate
                         </p>
-                    </div>
-                    <div className="w-full md:w-1/3 mb-6 md:mb-0 text-center">
-                        <h3 className="text-md font-semibold mb-2">
-                            Quick Links
-                        </h3>
-                        <ul className="text-sm">
+                        <ul className="space-y-1.5">
                             <li>
                                 <Link
                                     href="/"
-                                    className="hover:text-blue-500 transition-colors"
+                                    className="text-ink hover:text-signal"
                                 >
                                     Home
                                 </Link>
                             </li>
                             <li>
                                 <Link
+                                    href="/challenges"
+                                    className="text-ink hover:text-signal"
+                                >
+                                    Today
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
                                     href="/dashboard"
-                                    className="hover:text-blue-500 transition-colors"
+                                    className="text-ink hover:text-signal"
                                 >
                                     Dashboard
                                 </Link>
@@ -37,53 +46,17 @@ export default function Footer() {
                             <li>
                                 <Link
                                     href="/about"
-                                    className="hover:text-blue-500 transition-colors"
+                                    className="text-ink hover:text-signal"
                                 >
                                     About
                                 </Link>
                             </li>
                         </ul>
                     </div>
-                    <div className="w-full md:w-1/3 text-center">
-                        <h3 className="text-md font-semibold mb-2">Connect</h3>
-                        <ul className="text-sm">
-                            <li>
-                                <a
-                                    href="https://github.com"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="hover:text-blue-500 transition-colors"
-                                >
-                                    GitHub
-                                </a>
-                            </li>
-                            <li>
-                                <a
-                                    href="https://twitter.com"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="hover:text-blue-500 transition-colors"
-                                >
-                                    Twitter
-                                </a>
-                            </li>
-                            <li>
-                                <a
-                                    href="mailto:contact@example.com"
-                                    className="hover:text-blue-500 transition-colors"
-                                >
-                                    Contact Us
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
                 </div>
-                <div className="text-center mt-8 text-sm">
-                    <p>
-                        &copy; {new Date().getFullYear()} Daily Code Challenge.
-                        All rights reserved.
-                    </p>
-                </div>
+            </div>
+            <div className="border-t border-border/60 py-4 text-center font-mono text-xs text-muted-foreground">
+                © {new Date().getFullYear()} Daily Code Challenge
             </div>
         </footer>
     )

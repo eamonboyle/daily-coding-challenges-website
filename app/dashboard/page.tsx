@@ -10,9 +10,9 @@ export default async function DashboardPage() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold mb-6 text-center text-gray-800 dark:text-white">
-                Your Dashboard
+        <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+            <h1 className="mb-8 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+                Dashboard
             </h1>
             <DashboardContent userId={userId} />
         </div>

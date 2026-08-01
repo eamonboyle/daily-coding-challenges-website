@@ -18,13 +18,15 @@ export default function Header() {
             <HeaderShell
                 session={mockAuthSession}
                 authControls={
-                    <span className="text-sm text-muted-foreground">Mock</span>
+                    <span className="rounded-sm border border-border bg-secondary/70 px-2 py-0.5 font-mono text-xs uppercase tracking-wider text-muted-foreground">
+                        Mock
+                    </span>
                 }
                 signIn={
-                    <Button asChild>
+                    <Button asChild className="bg-signal text-white hover:bg-signal/90">
                         <Link href="/challenges">
                             <span>Enter</span>
-                            <ChevronRightIcon className="w-4 h-4" />
+                            <ChevronRightIcon className="h-4 w-4" />
                         </Link>
                     </Button>
                 }
@@ -61,6 +63,7 @@ function HeaderShell({
     const { isSignedIn, email } = session
     const pathname = usePathname()
     const [isClearing, setIsClearing] = useState(false)
+    const isHome = pathname === "/"
 
     const clearData = async () => {
         if (
@@ -88,30 +91,33 @@ function HeaderShell({
 
     const isActive = (path: string) => pathname === path
 
+    const linkClass = (path: string) =>
+        `text-sm transition-colors ${
+            isActive(path)
+                ? "text-signal"
+                : "text-muted-foreground hover:text-ink"
+        }`
+
     return (
-        <header className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white p-4 shadow-md">
-            <div className="container mx-auto flex justify-between items-center">
+        <header
+            className={`sticky top-0 z-40 border-b border-border/70 backdrop-blur-md ${
+                isHome
+                    ? "bg-background/55"
+                    : "bg-background/85"
+            }`}
+        >
+            <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
                 <Link
                     href="/"
-                    className={`text-2xl font-bold transition-colors ${
-                        isActive("/")
-                            ? "text-blue-600 dark:text-blue-400"
-                            : "hover:text-blue-600 dark:hover:text-blue-400"
-                    }`}
+                    className="group flex items-baseline gap-2 font-display text-lg font-semibold tracking-tight text-ink sm:text-xl"
                 >
+                    <span className="font-mono text-signal">/</span>
                     Daily Code Challenge
                 </Link>
                 <nav>
-                    <ul className="flex space-x-6 items-center">
+                    <ul className="flex items-center gap-5">
                         <li>
-                            <Link
-                                href="/about"
-                                className={`transition-colors ${
-                                    isActive("/about")
-                                        ? "text-blue-600 dark:text-blue-400"
-                                        : "hover:text-blue-600 dark:hover:text-blue-400"
-                                }`}
-                            >
+                            <Link href="/about" className={linkClass("/about")}>
                                 About
                             </Link>
                         </li>
@@ -120,43 +126,36 @@ function HeaderShell({
                                 <li>
                                     <Link
                                         href="/challenges"
-                                        className={`transition-colors ${
-                                            isActive("/challenges")
-                                                ? "text-blue-600 dark:text-blue-400"
-                                                : "hover:text-blue-600 dark:hover:text-blue-400"
-                                        }`}
+                                        className={linkClass("/challenges")}
                                     >
-                                        Daily Challenge
+                                        Today
                                     </Link>
                                 </li>
                                 <li>
                                     <Link
                                         href="/dashboard"
-                                        className={`transition-colors ${
-                                            isActive("/dashboard")
-                                                ? "text-blue-600 dark:text-blue-400"
-                                                : "hover:text-blue-600 dark:hover:text-blue-400"
-                                        }`}
+                                        className={linkClass("/dashboard")}
                                     >
                                         Dashboard
                                     </Link>
                                 </li>
-                                <li className="mt-2">{authControls}</li>
+                                <li>{authControls}</li>
                             </>
                         )}
                         {!isSignedIn && <li>{signIn}</li>}
                         <li>
                             <ModeToggle />
                         </li>
-
                         {email === "blaowskate@hotmail.com" && (
-                            <button
-                                onClick={clearData}
-                                disabled={isClearing}
-                                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
-                            >
-                                {isClearing ? "Clearing..." : "Clear All Data"}
-                            </button>
+                            <li>
+                                <button
+                                    onClick={clearData}
+                                    disabled={isClearing}
+                                    className="rounded-sm bg-fail px-3 py-1.5 text-xs font-medium text-white"
+                                >
+                                    {isClearing ? "Clearing..." : "Clear data"}
+                                </button>
+                            </li>
                         )}
                     </ul>
                 </nav>
