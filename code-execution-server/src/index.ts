@@ -14,7 +14,35 @@ const app = express()
 const PORT = process.env.PORT || 5000
 
 app.use(bodyParser.json())
-app.use(cors())
+app.use(
+    cors({
+        origin: process.env.EXECUTION_CORS_ORIGIN || false
+    })
+)
+
+const EXECUTION_API_SECRET = process.env.EXECUTION_API_SECRET
+
+function requireExecutionSecret(
+    req: Request,
+    res: Response,
+    next: () => void
+) {
+    if (!EXECUTION_API_SECRET) {
+        if (resolveExecutionMode() === "mock") {
+            next()
+            return
+        }
+        res.status(503).json({ error: "EXECUTION_API_SECRET is not configured" })
+        return
+    }
+
+    const provided = req.header("x-execution-secret")
+    if (provided !== EXECUTION_API_SECRET) {
+        res.status(401).json({ error: "Unauthorized" })
+        return
+    }
+    next()
+}
 
 if (resolveExecutionMode() === "docker") {
     DockerManager.initializeCacheEviction()
@@ -44,7 +72,7 @@ async function executeSafely(
     }
 }
 
-app.post("/execute", async (req: Request, res: Response) => {
+app.post("/execute", requireExecutionSecret, async (req: Request, res: Response) => {
     try {
         const language = req.body?.language
         if (typeof language !== "string" || !language.trim()) {

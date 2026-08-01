@@ -21,13 +21,24 @@ interface ExecutionCase {
     input: string
 }
 
+function executionHeaders(): HeadersInit {
+    const headers: Record<string, string> = {
+        "Content-Type": "application/json"
+    }
+    const secret = process.env.EXECUTION_API_SECRET
+    if (secret) {
+        headers["x-execution-secret"] = secret
+    }
+    return headers
+}
+
 async function executeSingleCase(
     language: string,
     executionCase: ExecutionCase
 ): Promise<ExecutionResult> {
     const response = await fetch(`${CODE_EXECUTION_URL}/execute`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: executionHeaders(),
         body: JSON.stringify({
             language,
             code: executionCase.code,
@@ -52,7 +63,7 @@ async function executeBatch(
     try {
         const response = await fetch(`${CODE_EXECUTION_URL}/execute`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: executionHeaders(),
             body: JSON.stringify({ language, cases })
         })
         if (!response.ok) {
