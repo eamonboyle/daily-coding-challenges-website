@@ -22,14 +22,10 @@ export async function DELETE(req: Request) {
             )
         }
 
-        // Delete all TestCases
-        await prisma.testCase.deleteMany()
-
-        // Delete all Submissions
         await prisma.submission.deleteMany()
-
-        // Delete all DailyChallenges
-        await prisma.dailyChallenge.deleteMany()
+        await prisma.testCase.deleteMany()
+        await prisma.assignment.deleteMany()
+        await prisma.challenge.deleteMany()
 
         return NextResponse.json({ message: "All data cleared successfully" })
     } catch (error) {

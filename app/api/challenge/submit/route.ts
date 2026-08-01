@@ -100,9 +100,15 @@ export async function POST(request: Request) {
         }
 
         // Fetch challenge details including test cases
-        const challenge = await prisma.dailyChallenge.findUnique({
+        const challenge = await prisma.challenge.findUnique({
             where: { id: challengeId },
-            include: { testCases: true }
+            include: {
+                testCases: true,
+                assignments: {
+                    where: { userId: user.id },
+                    select: { id: true }
+                }
+            }
         })
 
         if (!challenge) {
@@ -112,7 +118,7 @@ export async function POST(request: Request) {
             )
         }
 
-        if (challenge.userId !== user.id) {
+        if (challenge.assignments.length === 0) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
 

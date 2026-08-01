@@ -71,6 +71,31 @@ async function getValidJsonResponse(prompt: string): Promise<unknown> {
     )
 }
 
+interface ChallengeWithInputs {
+    id: string
+    date: Date
+    title: string
+    description: string
+    difficulty: string
+    languageSlug: string
+    testCases: Array<{ id: string; input: string }>
+}
+
+function toDailyResponse(challenge: ChallengeWithInputs) {
+    return {
+        id: challenge.id,
+        date: challenge.date,
+        title: challenge.title,
+        description: challenge.description,
+        difficulty: challenge.difficulty,
+        languageSlug: challenge.languageSlug,
+        testCases: challenge.testCases.map((testCase) => ({
+            id: testCase.id,
+            input: testCase.input
+        }))
+    }
+}
+
 export async function GET() {
     try {
         const user = await requireUser()
@@ -78,15 +103,20 @@ export async function GET() {
         const today = new Date()
         today.setHours(0, 0, 0, 0)
 
-        let challenge = await prisma.dailyChallenge.findUnique({
+        const assignment = await prisma.assignment.findUnique({
             where: {
-                date_userId: {
+                userId_date: {
                     date: today,
                     userId: user.id
                 }
             },
-            include: { testCases: true }
+            include: {
+                challenge: {
+                    include: { testCases: true }
+                }
+            }
         })
+        let challenge = assignment?.challenge ?? null
 
         if (!challenge) {
             const language = getLanguage(user.preferredLanguageSlug)
@@ -98,6 +128,34 @@ export async function GET() {
                     { error: "Unsupported language" },
                     { status: 400 }
                 )
+            }
+
+            challenge = await prisma.challenge.findUnique({
+                where: {
+                    date_languageSlug: {
+                        date: today,
+                        languageSlug: language.slug
+                    }
+                },
+                include: { testCases: true }
+            })
+
+            if (challenge) {
+                await prisma.assignment.upsert({
+                    where: {
+                        userId_date: {
+                            userId: user.id,
+                            date: today
+                        }
+                    },
+                    update: { challengeId: challenge.id },
+                    create: {
+                        userId: user.id,
+                        challengeId: challenge.id,
+                        date: today
+                    }
+                })
+                return NextResponse.json(toDailyResponse(challenge))
             }
 
             let generatedChallenge: ChallengeResponse
@@ -211,26 +269,57 @@ Respond with either a JSON array of test cases, or an object with a "testCases" 
                 count: validTestCases.length
             })
 
-            challenge = await prisma.$transaction((tx) =>
-                tx.dailyChallenge.create({
-                    data: {
-                        date: today,
-                        title,
-                        description,
-                        difficulty,
-                        solution,
-                        languageSlug: language.slug,
-                        userId: user.id,
-                        testCases: {
-                            create: validTestCases.map((testCase) => ({
-                                input: testCase.input,
-                                expectedOutput: testCase.expectedOutput
-                            }))
+            try {
+                challenge = await prisma.$transaction((tx) =>
+                    tx.challenge.create({
+                        data: {
+                            date: today,
+                            title,
+                            description,
+                            difficulty,
+                            solution,
+                            languageSlug: language.slug,
+                            assignments: {
+                                create: { userId: user.id, date: today }
+                            },
+                            testCases: {
+                                create: validTestCases.map((testCase) => ({
+                                    input: testCase.input,
+                                    expectedOutput: testCase.expectedOutput
+                                }))
+                            }
+                        },
+                        include: { testCases: true }
+                    })
+                )
+            } catch (createError) {
+                challenge = await prisma.challenge.findUnique({
+                    where: {
+                        date_languageSlug: {
+                            date: today,
+                            languageSlug: language.slug
                         }
                     },
                     include: { testCases: true }
                 })
-            )
+                if (!challenge) {
+                    throw createError
+                }
+                await prisma.assignment.upsert({
+                    where: {
+                        userId_date: {
+                            userId: user.id,
+                            date: today
+                        }
+                    },
+                    update: { challengeId: challenge.id },
+                    create: {
+                        userId: user.id,
+                        challengeId: challenge.id,
+                        date: today
+                    }
+                })
+            }
 
             logger.info("Created new daily challenge with test cases", {
                 challengeId: challenge.id,
@@ -238,18 +327,7 @@ Respond with either a JSON array of test cases, or an object with a "testCases" 
             })
         }
 
-        return NextResponse.json({
-            id: challenge.id,
-            date: challenge.date,
-            title: challenge.title,
-            description: challenge.description,
-            difficulty: challenge.difficulty,
-            languageSlug: challenge.languageSlug,
-            testCases: challenge.testCases.map((tc) => ({
-                id: tc.id,
-                input: tc.input
-            }))
-        })
+        return NextResponse.json(toDailyResponse(challenge))
     } catch (error) {
         if (isAuthError(error)) {
             return NextResponse.json(

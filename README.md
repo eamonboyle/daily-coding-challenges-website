@@ -1,6 +1,6 @@
 # Daily Coding Challenges
 
-Next.js app that serves a daily coding challenge per user, grades submissions against generated test cases, and runs user code in an isolated execution service.
+Next.js app that assigns a shared daily coding challenge by language, grades submissions against generated test cases, and runs user code in an isolated execution service.
 
 ## Architecture
 
@@ -16,6 +16,8 @@ Submission flow:
 3. Stdout is compared to the expected output (JSON-aware).
 
 GPT may return array/number test values. Those are coerced to strings at the API boundary (`lib/testCases.ts`) before Prisma storage.
+
+`Challenge` is unique by `(date, languageSlug)`. `Assignment` links each user to one challenge for a date, so users with the same preferred language share challenge and test-case rows while submissions remain user-owned.
 
 ## Quick start (mock mode, no Docker / no OpenAI / no Clerk)
 

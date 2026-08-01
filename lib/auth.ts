@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma"
 
-const MOCK_CLERK_USER_ID = process.env.MOCK_CLERK_USER_ID || "mock_clerk_user"
+const DEFAULT_MOCK_CLERK_USER_ID = "mock_clerk_user"
+const MOCK_CLERK_USER_ID =
+    process.env.MOCK_CLERK_USER_ID || DEFAULT_MOCK_CLERK_USER_ID
 
 export class AuthError extends Error {
     constructor(
@@ -45,13 +47,19 @@ export async function requireUser() {
     const clerkId = await requireAuthUserId()
 
     if (isMockMode()) {
+        const isDefaultMockUser = clerkId === DEFAULT_MOCK_CLERK_USER_ID
+        const safeMockId = clerkId.replace(/[^a-zA-Z0-9_-]/g, "_")
         await prisma.user.upsert({
             where: { clerkId },
             update: {},
             create: {
                 clerkId,
-                email: "mock@example.com",
-                username: "mockuser",
+                email: isDefaultMockUser
+                    ? "mock@example.com"
+                    : `mock+${safeMockId}@example.com`,
+                username: isDefaultMockUser
+                    ? "mockuser"
+                    : `mockuser_${safeMockId}`,
                 preferredLanguageSlug: "typescript"
             }
         })

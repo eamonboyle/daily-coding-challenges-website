@@ -16,11 +16,11 @@ export async function GET(request: Request) {
             )
         }
 
-        const challenge = await prisma.dailyChallenge.findFirst({
-            where: { id: challengeId, userId: user.id },
+        const assignment = await prisma.assignment.findFirst({
+            where: { challengeId, userId: user.id },
             select: { id: true }
         })
-        if (!challenge) {
+        if (!assignment) {
             return NextResponse.json(
                 { error: "Challenge not found" },
                 { status: 404 }

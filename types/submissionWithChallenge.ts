@@ -1,6 +1,6 @@
 import { Submission } from "@prisma/client"
-import { DailyChallenge } from "@prisma/client"
+import { Challenge } from "@prisma/client"
 
 export type SubmissionWithChallenge = Submission & {
-    challenge: DailyChallenge
+    challenge: Challenge
 }
