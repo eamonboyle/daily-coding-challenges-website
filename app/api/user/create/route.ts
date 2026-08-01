@@ -1,16 +1,23 @@
 import { NextResponse } from "next/server"
-import { auth, currentUser } from "@clerk/nextjs/server"
 import { getLanguageById } from "@/lib/languages"
 import { prisma } from "@/lib/prisma"
+import { getAuthUserId, isMockMode } from "@/lib/auth"
 
 export async function POST(request: Request) {
     try {
-        const { userId } = auth()
+        const userId = getAuthUserId()
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        const clerkUser = await currentUser()
+        let email = "mock@example.com"
+        if (!isMockMode()) {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const { currentUser } =
+                require("@clerk/nextjs/server") as typeof import("@clerk/nextjs/server")
+            const clerkUser = await currentUser()
+            email = clerkUser?.primaryEmailAddress?.emailAddress || email
+        }
 
         const { username, preferredLanguageId, emailAlerts } =
             await request.json()
@@ -27,7 +34,7 @@ export async function POST(request: Request) {
         const user = await prisma.user.create({
             data: {
                 clerkId: userId,
-                email: clerkUser?.primaryEmailAddress?.emailAddress,
+                email,
                 username,
                 preferredLanguageId: language.id,
                 preferredLanguage: language.name,

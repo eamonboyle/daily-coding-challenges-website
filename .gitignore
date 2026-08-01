@@ -28,6 +28,8 @@ yarn-error.log*
 # local env files
 .env
 .env.docker
+.env.local
+.env.development
 
 # vercel
 .vercel
@@ -36,6 +38,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.env.local
-.env.development
-.env.docker
+# executor temp dirs
+code-execution-server/src/temp/

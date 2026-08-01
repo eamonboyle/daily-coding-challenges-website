@@ -1,9 +1,9 @@
-import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import DashboardContent from "../../components/DashboardContent"
+import { getAuthUserId } from "@/lib/auth"
 
 export default async function DashboardPage() {
-    const { userId } = auth()
+    const userId = getAuthUserId()
 
     if (!userId) {
         redirect("/sign-in")

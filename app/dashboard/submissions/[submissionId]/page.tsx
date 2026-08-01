@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation"
-import { auth } from "@clerk/nextjs/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { BreadcrumbContainer } from "@/components/BreadcrumbContainer"
 import MonacoEditor from "@/components/MonacoEditor"
 import { prisma } from "@/lib/prisma"
+import { getAuthUserId } from "@/lib/auth"
 
 async function getSubmission(submissionId: string) {
-    const { userId } = auth()
+    const userId = getAuthUserId()
     if (!userId) {
         throw new Error("User not authenticated")
     }
