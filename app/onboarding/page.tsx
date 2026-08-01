@@ -3,7 +3,7 @@ import Onboarding from "../../components/Onboarding"
 import { getAuthUserId } from "@/lib/auth"
 
 export default async function OnboardingPage() {
-    const userId = getAuthUserId()
+    const userId = await getAuthUserId()
 
     if (!userId) {
         redirect("/sign-in")

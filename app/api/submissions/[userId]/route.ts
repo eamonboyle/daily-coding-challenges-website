@@ -3,16 +3,17 @@ import { NextResponse } from "next/server"
 
 export async function GET(
     request: Request,
-    { params }: { params: { userId: string } }
+    { params }: { params: Promise<{ userId: string }> }
 ) {
     try {
+        const { userId } = await params
         const { searchParams } = new URL(request.url)
         const page = parseInt(searchParams.get("page") || "1", 10)
         const limit = parseInt(searchParams.get("limit") || "10", 10)
         const skip = (page - 1) * limit
 
         const user = await prisma.user.findUnique({
-            where: { clerkId: params.userId }
+            where: { clerkId: userId }
         })
 
         if (!user) {

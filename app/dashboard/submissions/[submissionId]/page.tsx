@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma"
 import { getAuthUserId } from "@/lib/auth"
 
 async function getSubmission(submissionId: string) {
-    const userId = getAuthUserId()
+    const userId = await getAuthUserId()
     if (!userId) {
         throw new Error("User not authenticated")
     }
@@ -29,9 +29,10 @@ async function getSubmission(submissionId: string) {
 export default async function SubmissionPage({
     params
 }: {
-    params: { submissionId: string }
+    params: Promise<{ submissionId: string }>
 }) {
-    const submission = await getSubmission(params.submissionId)
+    const { submissionId } = await params
+    const submission = await getSubmission(submissionId)
 
     if (!submission) {
         notFound()

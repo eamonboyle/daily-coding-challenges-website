@@ -14,7 +14,7 @@ const CODE_EXECUTION_URL =
 export async function POST(request: Request) {
     const startTime = Date.now()
     try {
-        const userId = getAuthUserId()
+        const userId = await getAuthUserId()
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }

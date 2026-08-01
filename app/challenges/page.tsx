@@ -3,7 +3,7 @@ import DailyChallenge from "../../components/DailyChallenge"
 import { getAuthUserId } from "@/lib/auth"
 
 export default async function ChallengePage() {
-    const userId = getAuthUserId()
+    const userId = await getAuthUserId()
 
     if (!userId) {
         redirect("/sign-in")

@@ -3,7 +3,7 @@ import DashboardContent from "../../components/DashboardContent"
 import { getAuthUserId } from "@/lib/auth"
 
 export default async function DashboardPage() {
-    const userId = getAuthUserId()
+    const userId = await getAuthUserId()
 
     if (!userId) {
         redirect("/sign-in")

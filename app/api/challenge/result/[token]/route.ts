@@ -8,11 +8,12 @@ const JUDGE0_API_HOST = process.env.JUDGE0_API_HOST
 
 export async function GET(
     request: Request,
-    { params }: { params: { token: string } }
+    { params }: { params: Promise<{ token: string }> }
 ) {
     try {
+        const { token } = await params
         const resultResponse = await axios.get(
-            `${JUDGE0_API_URL}/submissions/${params.token}`,
+            `${JUDGE0_API_URL}/submissions/${token}`,
             {
                 headers: {
                     "X-RapidAPI-Key": JUDGE0_API_KEY,
@@ -25,7 +26,7 @@ export async function GET(
 
         // Find the submission with this token
         const submission = await prisma.submission.findFirst({
-            where: { judge0Token: params.token },
+            where: { judge0Token: token },
             include: { challenge: true }
         })
 

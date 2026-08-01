@@ -74,7 +74,7 @@ async function getValidJsonResponse(prompt: string): Promise<unknown> {
 
 export async function GET() {
     try {
-        const userId = getAuthUserId()
+        const userId = await getAuthUserId()
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }

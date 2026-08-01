@@ -32,16 +32,20 @@ npx prisma db push
 cd code-execution-server && EXECUTION_MODE=mock npm run dev
 
 # terminal 2
-APP_MODE=mock MOCK_OPENAI=true npm run dev
+npm run dev
 ```
 
 Open http://localhost:3000/challenges. Mock mode seeds a user automatically and serves the fixture "Sum Array Elements" challenge.
+
+Set both `APP_MODE=mock` and `NEXT_PUBLIC_APP_MODE=mock` (see `.env.example`). The public flag is required so client components skip Clerk hooks.
 
 Verify the executor alone:
 
 ```bash
 npm run verify:mock
 ```
+
+TypeScript is pinned to **5.9.3**. TypeScript 7 removed the classic `transpileModule` API and breaks `ts-node` / current `eslint-config-next` peers, so 5.9.3 is the newest release that keeps mock execution and tooling working.
 
 ## Docker Compose (full stack)
 
@@ -66,7 +70,8 @@ See `.env.example` and `.env.docker.example`.
 
 | Variable | Meaning |
 | --- | --- |
-| `APP_MODE` | `mock` bypasses Clerk and seeds a local user |
+| `APP_MODE` | `mock` bypasses Clerk on the server and seeds a local user |
+| `NEXT_PUBLIC_APP_MODE` | `mock` makes client components skip Clerk hooks |
 | `MOCK_OPENAI` | Use fixture challenge instead of calling OpenAI |
 | `EXECUTION_MODE` | `mock` or `docker` for the code-execution server |
 | `CODE_EXECUTION_URL` | Base URL Next.js uses to reach the executor |

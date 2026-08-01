@@ -4,7 +4,7 @@ import { getAuthUserId } from "@/lib/auth"
 
 export async function GET() {
     try {
-        const clerkId = getAuthUserId()
+        const clerkId = await getAuthUserId()
 
         if (!clerkId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -38,7 +38,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
     try {
-        const clerkId = getAuthUserId()
+        const clerkId = await getAuthUserId()
 
         if (!clerkId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

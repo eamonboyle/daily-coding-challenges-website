@@ -6,9 +6,9 @@ export function isMockMode(): boolean {
 
 /**
  * Returns the Clerk user id, or a fixed mock id when APP_MODE=mock.
- * Call sites should not branch on mock mode themselves.
+ * Clerk v7 `auth()` is async; call sites must await this.
  */
-export function getAuthUserId(): string | null {
+export async function getAuthUserId(): Promise<string | null> {
     if (isMockMode()) {
         return MOCK_CLERK_USER_ID
     }
@@ -16,7 +16,7 @@ export function getAuthUserId(): string | null {
     // Lazy-load so mock mode never initializes Clerk.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { auth } = require("@clerk/nextjs/server") as typeof import("@clerk/nextjs/server")
-    const { userId } = auth()
+    const { userId } = await auth()
     return userId
 }
 

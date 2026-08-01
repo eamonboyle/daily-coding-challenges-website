@@ -5,6 +5,7 @@ import Header from "../components/Header"
 import Footer from "../components/Footer"
 import { ThemeProvider } from "../components/ThemeProvider"
 import { Toaster } from "@/components/ui/toaster"
+import { isMockMode } from "@/lib/auth"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -18,26 +19,32 @@ export default function RootLayout({
 }: {
     children: React.ReactNode
 }) {
+    const content = (
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem={false}
+            disableTransitionOnChange
+        >
+            <Toaster />
+            <Header />
+            <main className="container mx-auto mt-8 px-4 flex-grow">
+                {children}
+            </main>
+            <Footer />
+        </ThemeProvider>
+    )
+
     return (
         <html lang="en" suppressHydrationWarning>
             <body
                 className={`${inter.className} flex flex-col min-h-screen dark`}
             >
-                <ThemeProvider
-                    attribute="class"
-                    defaultTheme="dark"
-                    enableSystem={false}
-                    disableTransitionOnChange
-                >
-                    <ClerkProvider>
-                        <Toaster />
-                        <Header />
-                        <main className="container mx-auto mt-8 px-4 flex-grow">
-                            {children}
-                        </main>
-                        <Footer />
-                    </ClerkProvider>
-                </ThemeProvider>
+                {isMockMode() ? (
+                    content
+                ) : (
+                    <ClerkProvider>{content}</ClerkProvider>
+                )}
             </body>
         </html>
     )

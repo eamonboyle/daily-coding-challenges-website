@@ -6,7 +6,7 @@ import { parseStoredValue, outputsMatch } from "@/lib/testCases"
 
 export async function POST(request: Request) {
     try {
-        const userId = getAuthUserId()
+        const userId = await getAuthUserId()
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }

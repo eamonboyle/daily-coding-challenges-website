@@ -1,17 +1,65 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { SignInButton, UserButton, useUser } from "@clerk/nextjs"
 import { ChevronRightIcon } from "@radix-ui/react-icons"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ModeToggle } from "@/components/ThemeToggle"
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
+import {
+    isClientMockMode,
+    mockAuthSession,
+    type AuthSession
+} from "@/hooks/use-auth-session"
 
 export default function Header() {
-    const { isSignedIn, user } = useUser()
-    const pathname = usePathname()
+    if (isClientMockMode()) {
+        return (
+            <HeaderShell
+                session={mockAuthSession}
+                authControls={
+                    <span className="text-sm text-muted-foreground">Mock</span>
+                }
+                signIn={
+                    <Button asChild>
+                        <Link href="/challenges">
+                            <span>Enter</span>
+                            <ChevronRightIcon className="w-4 h-4" />
+                        </Link>
+                    </Button>
+                }
+            />
+        )
+    }
 
+    return <ClerkBackedHeader />
+}
+
+function ClerkBackedHeader() {
+    // Lazy require keeps @clerk/nextjs out of the mock graph.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const clerk = require("@/components/ClerkAuthControls") as typeof import("@/components/ClerkAuthControls")
+    const session = clerk.useClerkAuthSession()
+    return (
+        <HeaderShell
+            session={session}
+            authControls={<clerk.ClerkAuthControls />}
+            signIn={<clerk.ClerkSignInButton />}
+        />
+    )
+}
+
+function HeaderShell({
+    session,
+    authControls,
+    signIn
+}: {
+    session: AuthSession
+    authControls: ReactNode
+    signIn: ReactNode
+}) {
+    const { isSignedIn, email } = session
+    const pathname = usePathname()
     const [isClearing, setIsClearing] = useState(false)
 
     const clearData = async () => {
@@ -93,71 +141,15 @@ export default function Header() {
                                         Dashboard
                                     </Link>
                                 </li>
-                                <li className="mt-2">
-                                    <UserButton
-                                        appearance={{
-                                            elements: {
-                                                actionCard:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userButtonPopoverRootBox:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userButtonPopoverCard:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userButtonPopoverCardHeader:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userButtonPopoverCardContent:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userButtonPopoverCardFooter:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userPreview:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userPreviewAvatar:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userPreviewInfo:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userPreviewInfoName:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userPreviewInfoEmail:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userPreviewMainIdentifier:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userPreviewSecondaryIdentifier:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userPreviewActionButton:
-                                                    "bg-gray-900 text-white border-gray-900 hover:bg-gray-700 hover:text-white",
-                                                userPreviewActionButtonIcon:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userButtonPopoverActionButton:
-                                                    "bg-gray-900 text-white border-gray-900 hover:bg-gray-700 hover:text-white",
-                                                userButtonPopoverActionButtonIcon:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                userButtonPopoverFooter:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                footer: "bg-gray-900 text-white border-gray-900 hover:text-white",
-                                                footerAction:
-                                                    "bg-gray-900 text-white border-gray-900 hover:text-white"
-                                            }
-                                        }}
-                                    />
-                                </li>
+                                <li className="mt-2">{authControls}</li>
                             </>
                         )}
-                        {!isSignedIn && (
-                            <li>
-                                <SignInButton forceRedirectUrl={"/onboarding"}>
-                                    <Button>
-                                        <span>Login</span>
-                                        <ChevronRightIcon className="w-4 h-4" />
-                                    </Button>
-                                </SignInButton>
-                            </li>
-                        )}
+                        {!isSignedIn && <li>{signIn}</li>}
                         <li>
                             <ModeToggle />
                         </li>
 
-                        {user?.primaryEmailAddress?.emailAddress ===
-                            "blaowskate@hotmail.com" && (
+                        {email === "blaowskate@hotmail.com" && (
                             <button
                                 onClick={clearData}
                                 disabled={isClearing}

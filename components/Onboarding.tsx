@@ -2,16 +2,29 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useUser } from "@clerk/nextjs"
 import { judge0Languages } from "@/config/judge0-languages"
+import { isClientMockMode, mockAuthSession } from "@/hooks/use-auth-session"
 
 export default function Onboarding() {
+    if (isClientMockMode()) {
+        return <OnboardingForm userId={mockAuthSession.userId} />
+    }
+    return <ClerkOnboarding />
+}
+
+function ClerkOnboarding() {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const clerk = require("@/components/ClerkAuthControls") as typeof import("@/components/ClerkAuthControls")
+    const { userId } = clerk.useClerkAuthSession()
+    return <OnboardingForm userId={userId} />
+}
+
+function OnboardingForm({ userId }: { userId: string | null }) {
     const [username, setUsername] = useState("")
     const [preferredLanguageId, setPreferredLanguageId] = useState("")
     const [emailAlerts, setEmailAlerts] = useState(true)
     const [isLoading, setIsLoading] = useState(true)
     const router = useRouter()
-    const { user } = useUser()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -24,29 +37,24 @@ export default function Onboarding() {
         if (response.ok) {
             router.push("/dashboard")
         } else {
-            // Handle error
             console.error("Failed to create user")
         }
     }
 
-    // If the user already exists in your database, redirect to dashboard
     useEffect(() => {
         const checkUser = async () => {
-            if (user) {
-                const response = await fetch(`/api/user/${user.id}`)
+            if (userId) {
+                const response = await fetch(`/api/user/${userId}`)
                 if (response.ok) {
                     router.push("/dashboard")
                     return
-                } else {
-                    setIsLoading(false)
                 }
-            } else {
-                setIsLoading(false)
             }
+            setIsLoading(false)
         }
 
-        checkUser()
-    }, [user, router])
+        void checkUser()
+    }, [userId, router])
 
     if (isLoading) {
         return (

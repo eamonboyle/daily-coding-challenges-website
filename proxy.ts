@@ -3,11 +3,11 @@ import type { NextRequest } from "next/server"
 
 /**
  * Mock mode must not import @clerk/nextjs: Clerk parses the publishable key
- * at module load and dummy keys crash edge middleware with InvalidCharacterError.
+ * at module load and dummy keys crash the edge runtime with InvalidCharacterError.
  */
-function createMiddleware() {
+function createProxy() {
     if (process.env.APP_MODE === "mock") {
-        return function mockMiddleware(_request: NextRequest) {
+        return function mockProxy(_request: NextRequest) {
             return NextResponse.next()
         }
     }
@@ -18,7 +18,7 @@ function createMiddleware() {
     return clerkMiddleware()
 }
 
-export default createMiddleware()
+export default createProxy()
 
 export const config = {
     matcher: [
