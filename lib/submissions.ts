@@ -15,9 +15,22 @@ export async function getPastSuccessfulSubmission(
         },
         select: {
             code: true,
-            score: true
+            score: true,
+            challenge: {
+                select: {
+                    solution: true
+                }
+            }
         }
     })
 
-    return submission
+    if (!submission) {
+        return null
+    }
+
+    return {
+        code: submission.code,
+        score: submission.score,
+        referenceSolution: submission.challenge.solution
+    }
 }

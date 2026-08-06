@@ -1,4 +1,4 @@
-import type { LanguageSlug } from "@/lib/languages/registry"
+import type { LanguageSlug } from "../languages/registry"
 
 export interface FixtureChallenge {
     title: string

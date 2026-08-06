@@ -45,11 +45,15 @@ Open http://localhost:3000/challenges. Mock mode seeds a user automatically and 
 
 Set `APP_MODE=mock`, `NEXT_PUBLIC_APP_MODE=mock`, and `EXECUTION_MODE=mock` (see `.env.example`). The public flag makes client components skip Clerk hooks; the executor flag selects its no-Docker backend. In this mode Next.js defaults to `http://localhost:5000` when `CODE_EXECUTION_URL` is omitted. Compose still sets the service URL explicitly.
 
-Verify the executor alone:
+Verify the executor + fixture grading engine alone:
 
 ```bash
 npm run verify:mock
 ```
+
+`lib/mocks/mockEngine.ts` grades solutions against the fixture challenge in-process (wrap → mock execute → compare). Cloud agents can extend product features and re-run `verify:mock` without Docker, OpenAI, Clerk, or a running Next server.
+
+After solving a challenge in the app, the UI shows per-test results and unlocks the stored reference solution. Profile settings include preferred language and email alerts.
 
 TypeScript is pinned to **5.9.3**. TypeScript 7 removed the classic `transpileModule` API and breaks `ts-node` / current `eslint-config-next` peers, so 5.9.3 is the newest release that keeps mock execution and tooling working.
 

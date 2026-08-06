@@ -1,5 +1,5 @@
-import { escapeString } from "@/lib/escapeString"
-import { parseStoredValue } from "@/lib/testCases"
+import { escapeString } from "../escapeString"
+import { parseStoredValue } from "../testCases"
 
 export const LANGUAGE_SLUGS = ["javascript", "typescript", "python"] as const
 

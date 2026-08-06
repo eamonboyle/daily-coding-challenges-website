@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import MonacoEditor from "@/components/MonacoEditor"
+import TestResultsList from "@/components/TestResultsList"
 import { motion } from "framer-motion"
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
 import confetti from "canvas-confetti"
 import { getLanguage, type LanguageSlug } from "@/lib/languages/registry"
+import type { GradedTestResult } from "@/types/gradedTestResult"
 
 interface Challenge {
     id: string
@@ -26,11 +28,14 @@ interface SubmissionResult {
     totalTests: number
     output?: string
     errorOutput?: string
+    testResults?: GradedTestResult[]
+    referenceSolution?: string
 }
 
 interface PastSubmission {
     code: string
     score: number
+    referenceSolution?: string
 }
 
 export default function DailyChallenge() {
@@ -106,14 +111,19 @@ export default function DailyChallenge() {
                 throw new Error("Failed to submit challenge")
             }
 
-            const result: SubmissionResult = await response.json()
-            setResult(result)
+            const submissionResult: SubmissionResult = await response.json()
+            setResult(submissionResult)
 
-            if (result.score === 100) {
+            if (submissionResult.score === 100) {
                 confetti({
                     particleCount: 100,
                     spread: 70,
                     origin: { y: 0.6 }
+                })
+                setPastSubmission({
+                    code,
+                    score: submissionResult.score,
+                    referenceSolution: submissionResult.referenceSolution
                 })
             }
         } catch (error) {
@@ -165,6 +175,8 @@ export default function DailyChallenge() {
         getLanguage(challenge.languageSlug)?.displayName ??
         challenge.languageSlug
     const accepted = result?.score === 100
+    const referenceSolution =
+        result?.referenceSolution ?? pastSubmission?.referenceSolution
 
     return (
         <motion.div
@@ -237,6 +249,23 @@ export default function DailyChallenge() {
                             </Button>
                         )}
                     </div>
+
+                    {referenceSolution ? (
+                        <div className="surface-panel mt-6 overflow-hidden rounded-md">
+                            <div className="border-b border-border/80 px-4 py-2.5">
+                                <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+                                    Reference solution
+                                </p>
+                            </div>
+                            <div className="p-3 sm:p-4">
+                                <MonacoEditor
+                                    language={challenge.languageSlug}
+                                    value={referenceSolution}
+                                    readOnly={true}
+                                />
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
 
                 <div className="w-full lg:w-1/3">
@@ -285,7 +314,10 @@ export default function DailyChallenge() {
                                 />
                             </div>
 
-                            {result.output && (
+                            {result.testResults &&
+                            result.testResults.length > 0 ? (
+                                <TestResultsList results={result.testResults} />
+                            ) : result.output ? (
                                 <div className="mt-5">
                                     <p className="mb-2 font-mono text-xs uppercase tracking-wider text-muted-foreground">
                                         Output
@@ -294,12 +326,13 @@ export default function DailyChallenge() {
                                         {result.output}
                                     </pre>
                                 </div>
-                            )}
+                            ) : null}
                         </motion.div>
                     ) : (
                         <div className="flex h-full min-h-48 items-center justify-center rounded-md border border-dashed border-border/80 bg-card/40 p-6">
                             <p className="max-w-[16rem] text-center text-sm leading-relaxed text-muted-foreground">
-                                Run your solution to see test results here.
+                                Run your solution to see each test pass or fail
+                                here.
                             </p>
                         </div>
                     )}
