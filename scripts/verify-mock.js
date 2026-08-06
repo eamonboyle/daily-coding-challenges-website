@@ -1,5 +1,6 @@
 /**
- * Smoke checks for test-case normalization and the mock executor.
+ * Smoke checks for test-case normalization, mock executor, and the fixture
+ * grading engine used by cloud agents in APP_MODE=mock.
  * Run: npm run verify:mock
  */
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -43,7 +44,9 @@ async function main() {
     assert.ok(!outputsMatch("1", "2"))
 
     process.env.EXECUTION_MODE = "mock"
-    const { executeCode } = require("../code-execution-server/src/services/executionBackend")
+    const {
+        executeCode
+    } = require("../code-execution-server/src/services/executionBackend")
 
     const tsResult = await executeCode({
         language: "typescript",
@@ -70,6 +73,52 @@ console.log(solution([1, 2, 3]));
     })
     assert.strictEqual(pyResult.stderr, "", pyResult.stderr)
     assert.strictEqual(pyResult.stdout.trim(), "6")
+
+    const {
+        gradeFixtureSolution,
+        fixtureSolution,
+        wrongFixtureSolution
+    } = require("../lib/mocks/mockEngine")
+
+    for (const languageSlug of ["javascript", "typescript", "python"]) {
+        const accepted = await gradeFixtureSolution({
+            languageSlug,
+            code: fixtureSolution(languageSlug),
+            execute: executeCode
+        })
+        assert.strictEqual(accepted.status, "Accepted", languageSlug)
+        assert.strictEqual(accepted.score, 100, languageSlug)
+        assert.strictEqual(
+            accepted.passedTests,
+            accepted.totalTests,
+            languageSlug
+        )
+        assert.ok(accepted.referenceSolution.includes("solution"), languageSlug)
+        assert.ok(
+            accepted.cases.every((c) => c.passed),
+            `${languageSlug} all cases pass`
+        )
+
+        const rejected = await gradeFixtureSolution({
+            languageSlug,
+            code: wrongFixtureSolution(languageSlug),
+            execute: executeCode
+        })
+        assert.strictEqual(rejected.status, "Wrong Answer", languageSlug)
+        assert.ok(rejected.score < 100, languageSlug)
+        assert.ok(
+            rejected.cases.some((c) => !c.passed),
+            `${languageSlug} has a failing case`
+        )
+        assert.ok(
+            rejected.cases.every(
+                (c) =>
+                    typeof c.input === "string" &&
+                    typeof c.expectedOutput === "string"
+            ),
+            `${languageSlug} exposes input/expected for feedback`
+        )
+    }
 
     console.log("verify:mock passed")
     process.exit(0)

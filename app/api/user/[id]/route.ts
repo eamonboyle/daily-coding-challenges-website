@@ -1,20 +1,24 @@
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
-import { isAuthError, requireUser } from "@/lib/auth"
+import { isAuthError, requireAuthUserId } from "@/lib/auth"
 
+/**
+ * Existence check used by onboarding. Does not auto-seed a mock user —
+ * otherwise mock mode would skip onboarding forever.
+ */
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const authenticatedUser = await requireUser()
+        const clerkId = await requireAuthUserId()
         const { id } = await params
-        if (id !== authenticatedUser.clerkId) {
+        if (id !== clerkId) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
 
         const user = await prisma.user.findUnique({
-            where: { id: authenticatedUser.id },
+            where: { clerkId },
             select: {
                 username: true,
                 email: true,
@@ -26,12 +30,9 @@ export async function GET(
 
         if (user) {
             return NextResponse.json(user)
-        } else {
-            return NextResponse.json(
-                { error: "User not found" },
-                { status: 404 }
-            )
         }
+
+        return NextResponse.json({ error: "User not found" }, { status: 404 })
     } catch (error) {
         if (isAuthError(error)) {
             return NextResponse.json(

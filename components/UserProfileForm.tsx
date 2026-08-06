@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { LANGUAGE_SLUGS, languages } from "@/lib/languages/registry"
 
 const formSchema = z.object({
     username: z.string().min(2, {
@@ -32,19 +33,25 @@ const formSchema = z.object({
         .max(160, {
             message: "Bio must not exceed 160 characters."
         })
-        .nullable()
+        .nullable(),
+    preferredLanguageSlug: z.enum(LANGUAGE_SLUGS),
+    emailAlerts: z.boolean()
 })
+
+type ProfileFormValues = z.infer<typeof formSchema>
 
 export default function UserProfileForm() {
     const [isLoading, setIsLoading] = useState(false)
     const { toast } = useToast()
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<ProfileFormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             username: "",
             email: "",
-            bio: ""
+            bio: "",
+            preferredLanguageSlug: "typescript",
+            emailAlerts: true
         }
     })
 
@@ -58,7 +65,10 @@ export default function UserProfileForm() {
                     form.reset({
                         username: userData.username,
                         email: userData.email,
-                        bio: userData.bio || ""
+                        bio: userData.bio || "",
+                        preferredLanguageSlug:
+                            userData.preferredLanguageSlug || "typescript",
+                        emailAlerts: Boolean(userData.emailAlerts)
                     })
                 } else {
                     throw new Error("Failed to fetch user profile")
@@ -78,7 +88,7 @@ export default function UserProfileForm() {
         fetchUserProfile()
     }, [form, toast])
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: ProfileFormValues) {
         setIsLoading(true)
         try {
             const response = await fetch("/api/users/profile", {
@@ -127,7 +137,7 @@ export default function UserProfileForm() {
                             Edit profile
                         </CardTitle>
                         <p className="text-sm text-muted-foreground">
-                            Your public name and contact details
+                            Language preference applies to new daily assignments
                         </p>
                     </div>
                 </div>
@@ -172,8 +182,76 @@ export default function UserProfileForm() {
                                         />
                                     </FormControl>
                                     <FormDescription>
-                                        Your email address for notifications.
+                                        Used for account contact and alerts.
                                     </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="preferredLanguageSlug"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Preferred language</FormLabel>
+                                    <FormControl>
+                                        <select
+                                            title="Preferred language"
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            onBlur={field.onBlur}
+                                            name={field.name}
+                                            ref={field.ref}
+                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                        >
+                                            {languages.map((language) => (
+                                                <option
+                                                    key={language.slug}
+                                                    value={language.slug}
+                                                >
+                                                    {language.displayName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </FormControl>
+                                    <FormDescription>
+                                        New daily challenges use this language.
+                                        Today&apos;s assignment stays as-is.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="emailAlerts"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <div className="flex items-center gap-2">
+                                        <FormControl>
+                                            <input
+                                                id="emailAlerts"
+                                                type="checkbox"
+                                                checked={field.value}
+                                                onChange={(e) =>
+                                                    field.onChange(
+                                                        e.target.checked
+                                                    )
+                                                }
+                                                onBlur={field.onBlur}
+                                                name={field.name}
+                                                ref={field.ref}
+                                                className="h-4 w-4 rounded border-input accent-[var(--signal)]"
+                                            />
+                                        </FormControl>
+                                        <FormLabel
+                                            htmlFor="emailAlerts"
+                                            className="font-normal text-muted-foreground"
+                                        >
+                                            Receive email alerts for new
+                                            challenges
+                                        </FormLabel>
+                                    </div>
                                     <FormMessage />
                                 </FormItem>
                             )}

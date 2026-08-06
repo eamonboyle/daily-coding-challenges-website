@@ -1,16 +1,33 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { isAuthError, isMockMode, requireUser } from "@/lib/auth"
+import {
+    isAuthError,
+    isMockMode,
+    requireAuthUserId,
+    requireUser
+} from "@/lib/auth"
 
+/**
+ * Clears challenge/submission data. In mock mode, `?resetUser=1` also deletes
+ * the current mock user so onboarding can be exercised again.
+ */
 export async function DELETE(req: Request) {
     try {
-        const user = await requireUser()
+        const { searchParams } = new URL(req.url)
+        const resetUser = searchParams.get("resetUser") === "1"
+
+        // When resetting the user, avoid auto-seeding a replacement.
+        const user = resetUser && isMockMode() ? null : await requireUser()
+        const clerkId =
+            resetUser && isMockMode()
+                ? await requireAuthUserId()
+                : user?.clerkId
 
         const allowed =
             isMockMode() ||
             user?.email === "blaowskate@hotmail.com" ||
             user?.email === "mock@example.com"
-        if (!user || !allowed) {
+        if (!allowed) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
 
@@ -27,7 +44,14 @@ export async function DELETE(req: Request) {
         await prisma.assignment.deleteMany()
         await prisma.challenge.deleteMany()
 
-        return NextResponse.json({ message: "All data cleared successfully" })
+        if (resetUser && isMockMode() && clerkId) {
+            await prisma.user.deleteMany({ where: { clerkId } })
+        }
+
+        return NextResponse.json({
+            message: "All data cleared successfully",
+            resetUser: Boolean(resetUser && isMockMode())
+        })
     } catch (error) {
         if (isAuthError(error)) {
             return NextResponse.json(

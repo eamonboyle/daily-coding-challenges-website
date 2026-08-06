@@ -4,6 +4,7 @@ import { isAuthError, requireUser } from "@/lib/auth"
 import { outputsMatch } from "@/lib/testCases"
 import logger from "@/lib/logger"
 import { getLanguage, wrapSolutionCode } from "@/lib/languages/registry"
+import type { GradedTestResult } from "@/types/gradedTestResult"
 
 // Compose sets CODE_EXECUTION_URL explicitly; mock/local mode uses its local executor.
 const CODE_EXECUTION_URL =
@@ -208,7 +209,23 @@ export async function POST(request: Request) {
             .map((result) => result.stderr || result.error || "")
             .join("\n---\n")
 
+        const gradedTests: GradedTestResult[] = results.map((result, index) => {
+            const testCase = testCases[index]
+            return {
+                testCaseId: result.testCaseId,
+                input: testCase.input,
+                expectedOutput: testCase.expectedOutput,
+                stdout: result.stdout,
+                stderr: result.stderr || result.error || null,
+                passed: result.passed
+            }
+        })
+
         const submission = await prisma.$transaction(async (tx) => {
+            const priorAttempts = await tx.submission.count({
+                where: { userId: user.id, challengeId }
+            })
+
             const createdSubmission = await tx.submission.create({
                 data: {
                     userId: user.id,
@@ -219,6 +236,7 @@ export async function POST(request: Request) {
                     passedTests,
                     totalTests,
                     score,
+                    attempts: priorAttempts + 1,
                     output,
                     errorOutput,
                     executionTime: parseFloat(
@@ -241,16 +259,19 @@ export async function POST(request: Request) {
             return createdSubmission
         })
 
-        // Return the submission results
         return NextResponse.json({
             submissionId: submission.id,
             status: submission.status,
             score: submission.score,
             passedTests: submission.passedTests,
             totalTests: submission.totalTests,
+            attempts: submission.attempts,
             output: submission.output,
             errorOutput: submission.errorOutput,
-            executionTime: submission.executionTime // Include execution time in response
+            executionTime: submission.executionTime,
+            testResults: gradedTests,
+            referenceSolution:
+                status === "Accepted" ? challenge.solution : undefined
         })
     } catch (error) {
         if (isAuthError(error)) {
