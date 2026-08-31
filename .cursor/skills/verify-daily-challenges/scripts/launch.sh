@@ -73,7 +73,7 @@ if [[ "$DB_EXISTS" != "1" ]]; then
   fi
 fi
 
-DATABASE_URL="$VERIFY_DATABASE_URL" npx prisma db push --skip-generate >/dev/null
+DATABASE_URL="$VERIFY_DATABASE_URL" npx prisma db push
 
 if [[ ! -d "$VERIFY_TOOLING/node_modules/playwright-core" ]]; then
   mkdir -p "$VERIFY_TOOLING"
@@ -99,9 +99,12 @@ NEXT_PID=""
 CHROME_PID=""
 
 cleanup_failed_launch() {
-  if pid_alive "${EXECUTOR_PID:-}"; then kill "$EXECUTOR_PID" 2>/dev/null || true; fi
-  if pid_alive "${NEXT_PID:-}"; then kill "$NEXT_PID" 2>/dev/null || true; fi
-  if pid_alive "${CHROME_PID:-}"; then kill "$CHROME_PID" 2>/dev/null || true; fi
+  kill_tree "${CHROME_PID:-}"
+  kill_tree "${NEXT_PID:-}"
+  kill_tree "${EXECUTOR_PID:-}"
+  kill_port_listeners "$VERIFY_APP_PORT"
+  kill_port_listeners "$VERIFY_EXECUTOR_PORT"
+  kill_port_listeners "$VERIFY_CDP_PORT"
 }
 trap cleanup_failed_launch ERR
 
@@ -117,13 +120,13 @@ export NEXT_PUBLIC_MOCK_CLERK_USER_ID="$VERIFY_CLERK_USER_ID"
 export EXECUTION_API_SECRET=""
 
 cd "$REPO_ROOT/code-execution-server"
-EXECUTION_MODE=mock PORT="$VERIFY_EXECUTOR_PORT" npx ts-node src/index.ts \
-  >"$VERIFY_RUN_DIR/executor.log" 2>&1 &
+setsid env EXECUTION_MODE=mock PORT="$VERIFY_EXECUTOR_PORT" npx ts-node src/index.ts \
+  </dev/null >"$VERIFY_RUN_DIR/executor.log" 2>&1 &
 EXECUTOR_PID=$!
 
 cd "$REPO_ROOT"
-PORT="$VERIFY_APP_PORT" npx next dev -H "$VERIFY_APP_HOST" -p "$VERIFY_APP_PORT" \
-  >"$VERIFY_RUN_DIR/next.log" 2>&1 &
+setsid env PORT="$VERIFY_APP_PORT" npx next dev -H "$VERIFY_APP_HOST" -p "$VERIFY_APP_PORT" \
+  </dev/null >"$VERIFY_RUN_DIR/next.log" 2>&1 &
 NEXT_PID=$!
 
 CHROME_ARGS=(

@@ -78,6 +78,8 @@ Named recipe for the core loop:
 node .cursor/skills/verify-daily-challenges/scripts/browser.mjs feature daily-challenge
 ```
 
+`browser.mjs` calls `process.exit` when the command finishes. The CDP socket would otherwise keep Node alive.
+
 Read `features/README.md`, then the feature file for the path you are proving. Driving one convenient entry point is incomplete when the map lists others.
 
 Stable handles:

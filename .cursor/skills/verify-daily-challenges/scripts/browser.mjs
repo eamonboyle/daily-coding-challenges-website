@@ -75,6 +75,7 @@ async function connect(state) {
   const context = browser.contexts()[0] || (await browser.newContext())
   const page = context.pages()[0] || (await context.newPage())
   page.setDefaultTimeout(30000)
+  await page.setViewportSize({ width: 1280, height: 800 })
   return { browser, context, page }
 }
 
@@ -386,7 +387,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.stack : error)
-  process.exit(1)
-})
+main()
+  .then(() => process.exit(process.exitCode || 0))
+  .catch((error) => {
+    console.error(error instanceof Error ? error.stack : error)
+    process.exit(1)
+  })

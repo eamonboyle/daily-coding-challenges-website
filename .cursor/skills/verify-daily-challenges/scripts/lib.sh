@@ -64,6 +64,83 @@ pid_alive() {
   [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
 }
 
+kill_tree() {
+  local pid="${1:-}"
+  if [[ -z "$pid" ]]; then
+    return 0
+  fi
+  if pid_alive "$pid"; then
+    local child
+    for child in $(pgrep -P "$pid" 2>/dev/null || true); do
+      kill_tree "$child"
+    done
+    kill "$pid" 2>/dev/null || true
+  fi
+}
+
+kill_port_listeners() {
+  local port="$1"
+  python3 - "$port" <<'PY'
+import glob, os, sys, time
+
+want = int(sys.argv[1])
+
+def parse_port(hexstr):
+    return int(hexstr.split(":")[1], 16)
+
+def listen_inodes(path):
+    found = set()
+    try:
+        with open(path, encoding="utf-8") as fh:
+            next(fh)
+            for line in fh:
+                parts = line.split()
+                if parts[3] != "0A":
+                    continue
+                if parse_port(parts[1]) == want:
+                    found.add(parts[9])
+    except FileNotFoundError:
+        pass
+    return found
+
+inodes = listen_inodes("/proc/net/tcp") | listen_inodes("/proc/net/tcp6")
+if not inodes:
+    sys.exit(0)
+
+pids = set()
+for fd in glob.glob("/proc/[0-9]*/fd/[0-9]*"):
+    try:
+        target = os.readlink(fd)
+    except OSError:
+        continue
+    if not target.startswith("socket["):
+        continue
+    inode = target[7:-1]
+    if inode in inodes:
+        pids.add(int(fd.split("/")[2]))
+
+for pid in sorted(pids):
+    try:
+        os.kill(pid, 15)
+        print(f"stopped listener {pid} on port {want}")
+    except OSError:
+        pass
+
+deadline = time.time() + 4
+while time.time() < deadline:
+    still = listen_inodes("/proc/net/tcp") | listen_inodes("/proc/net/tcp6")
+    if not still:
+        break
+    time.sleep(0.2)
+else:
+    for pid in sorted(pids):
+        try:
+            os.kill(pid, 9)
+        except OSError:
+            pass
+PY
+}
+
 port_open() {
   local host="$1"
   local port="$2"

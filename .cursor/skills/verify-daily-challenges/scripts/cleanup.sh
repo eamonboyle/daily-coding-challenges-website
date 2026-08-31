@@ -11,14 +11,23 @@ if [[ ! -f "$VERIFY_STATE" ]]; then
 fi
 load_state
 
-stop_pid() {
+stop_tree() {
   local pid="${1:-}"
   local label="$2"
+  if [[ -z "$pid" ]]; then
+    echo "$label: no pid recorded"
+    return 0
+  fi
   if ! pid_alive "$pid"; then
     echo "$label: already stopped"
     return 0
   fi
-  kill "$pid" 2>/dev/null || true
+  local pgid
+  pgid="$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ' || true)"
+  kill_tree "$pid"
+  if [[ -n "$pgid" && "$pgid" != "1" ]]; then
+    kill -- "-$pgid" 2>/dev/null || true
+  fi
   local i
   for i in $(seq 1 20); do
     if ! pid_alive "$pid"; then
@@ -31,28 +40,13 @@ stop_pid() {
   echo "$label: killed $pid"
 }
 
-stop_pid "${CHROME_PID:-}" "chrome"
-stop_pid "${NEXT_PID:-}" "next"
-stop_pid "${EXECUTOR_PID:-}" "executor"
+stop_tree "${CHROME_PID:-}" "chrome"
+stop_tree "${NEXT_PID:-}" "next"
+stop_tree "${EXECUTOR_PID:-}" "executor"
 
-kill_listeners() {
-  local port="$1"
-  local label="$2"
-  local pids=""
-  if command -v fuser >/dev/null 2>&1; then
-    pids="$(fuser "${port}/tcp" 2>/dev/null || true)"
-  fi
-  for pid in $pids; do
-    if pid_alive "$pid"; then
-      kill "$pid" 2>/dev/null || true
-      echo "$label: stopped leftover listener $pid on $port"
-    fi
-  done
-}
-
-kill_listeners "$VERIFY_CDP_PORT" "chrome"
-kill_listeners "$VERIFY_APP_PORT" "next"
-kill_listeners "$VERIFY_EXECUTOR_PORT" "executor"
+kill_port_listeners "$VERIFY_CDP_PORT"
+kill_port_listeners "$VERIFY_APP_PORT"
+kill_port_listeners "$VERIFY_EXECUTOR_PORT"
 
 if [[ "${STARTED_POSTGRES:-0}" == "1" ]]; then
   echo "postgres was started by launch.sh; leaving the cluster up so other work is not disrupted"
